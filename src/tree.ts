@@ -6,6 +6,8 @@ export interface PageNode {
   children: PageNode[];
 }
 
+import { iconEl } from "./icons";
+
 export type OnSelect = (relPath: string) => void;
 
 const expanded = new Set<string>();
@@ -47,6 +49,12 @@ function buildNode(node: PageNode, activePath: string | null, onSelect: OnSelect
   const isOpen = expanded.has(node.key);
   twisty.textContent = hasChildren ? (isOpen ? "▾" : "▸") : "";
   row.appendChild(twisty);
+
+  // Icono: carpeta si es un directorio sin página propia; página en el resto.
+  const kind = node.is_dir && !node.rel_path ? "folder" : "page";
+  const ic = iconEl(kind);
+  ic.classList.add("tree-icon");
+  row.appendChild(ic);
 
   const label = document.createElement("span");
   label.className = "label";

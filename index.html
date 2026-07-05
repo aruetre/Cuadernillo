@@ -10,8 +10,10 @@
   <div id="app">
     <aside id="sidebar">
       <div id="sidebar-header">
-        <button id="btn-open-notebook" title="Abrir cuaderno">Abrir cuaderno</button>
-        <button id="btn-new-page" title="Nueva página" disabled>+</button>
+        <button id="btn-open-notebook" class="text-btn" title="Abrir cuaderno">
+          <span class="btn-label">Abrir cuaderno</span>
+        </button>
+        <button id="btn-new-page" class="icon-btn" title="Nueva página" aria-label="Nueva página" disabled></button>
       </div>
       <nav id="tree" aria-label="Páginas del cuaderno">
         <p class="tree-empty">Ningún cuaderno abierto.<br />Elige una carpeta con ficheros .md o crea una vacía.</p>
@@ -19,14 +21,23 @@
     </aside>
     <main id="content">
       <header id="page-header">
+        <button id="btn-toggle-sidebar" class="icon-btn" title="Ocultar/mostrar árbol" aria-label="Ocultar o mostrar el árbol"></button>
         <span id="page-path">Cuadernillo</span>
         <span id="save-status" data-state="idle"></span>
         <span class="spacer"></span>
-        <button id="btn-rename" disabled>Renombrar</button>
-        <button id="btn-delete" disabled>Eliminar</button>
+        <button id="btn-toggle-toolbar" class="icon-btn" title="Ocultar/mostrar barra de herramientas" aria-label="Ocultar o mostrar la barra de herramientas"></button>
+        <button id="btn-view" class="icon-btn" title="Ver código markdown" aria-label="Alternar vista de código y formato" disabled></button>
+        <button id="btn-templates" class="icon-btn" title="Plantillas" aria-label="Insertar plantilla" disabled></button>
+        <button id="btn-settings" class="icon-btn" title="Ajustes del cuaderno" aria-label="Ajustes del cuaderno" disabled></button>
+        <button id="btn-help" class="icon-btn" title="Ayuda de markdown" aria-label="Ayuda de markdown"></button>
+        <span class="header-sep"></span>
+        <button id="btn-rename" class="icon-btn" title="Renombrar página" aria-label="Renombrar página" disabled></button>
+        <button id="btn-delete" class="icon-btn danger" title="Eliminar página" aria-label="Eliminar página" disabled></button>
       </header>
+      <div id="toolbar" role="toolbar" aria-label="Herramientas de formato"></div>
       <div id="editor-wrap">
         <div id="editor"></div>
+        <textarea id="source-view" spellcheck="false" aria-label="Código markdown"></textarea>
         <div id="welcome">
           <h1>Cuadernillo</h1>
           <p>Editor markdown WYSIWYG con estructura de cuaderno tipo Zim.</p>

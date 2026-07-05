@@ -282,6 +282,156 @@ fn delete_page(state: State<'_, NotebookState>, rel_path: String) -> Result<(), 
     // Las subpáginas (carpeta homónima) se conservan a propósito.
 }
 
+// --- Ajustes por cuaderno (.cuadernillo/) ------------------------------------
+// Aspecto (fuente, márgenes, ancho) y CSS personalizado viven en una carpeta
+// oculta dentro del propio cuaderno, para que viajen con él (git/Syncthing).
+
+fn dot_dir(root: &Path) -> PathBuf {
+    root.join(".cuadernillo")
+}
+
+/// Lee un fichero interno de `.cuadernillo/`. Devuelve "" si no existe todavía.
+fn read_dot_file(root: &Path, name: &str) -> Result<String, String> {
+    let path = dot_dir(root).join(name);
+    ensure_within(root, &path)?;
+    match fs::read_to_string(&path) {
+        Ok(s) => Ok(s),
+        Err(_) => Ok(String::new()),
+    }
+}
+
+/// Escribe un fichero interno de `.cuadernillo/` (escritura atómica).
+fn write_dot_file(root: &Path, name: &str, content: &str) -> Result<(), String> {
+    let dir = dot_dir(root);
+    fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    ensure_within(root, &dir)?;
+    let path = dir.join(name);
+    let tmp = dir.join(format!("{name}.tmp"));
+    fs::write(&tmp, content).map_err(|e| format!("No se pudo escribir: {e}"))?;
+    fs::rename(&tmp, &path).map_err(|e| format!("No se pudo guardar: {e}"))
+}
+
+#[tauri::command]
+fn read_config(state: State<'_, NotebookState>) -> Result<String, String> {
+    read_dot_file(&state.root()?, "config.json")
+}
+
+#[tauri::command]
+fn write_config(state: State<'_, NotebookState>, content: String) -> Result<(), String> {
+    write_dot_file(&state.root()?, "config.json", &content)
+}
+
+#[tauri::command]
+fn read_custom_css(state: State<'_, NotebookState>) -> Result<String, String> {
+    read_dot_file(&state.root()?, "custom.css")
+}
+
+#[tauri::command]
+fn write_custom_css(state: State<'_, NotebookState>, content: String) -> Result<(), String> {
+    write_dot_file(&state.root()?, "custom.css", &content)
+}
+
+// --- Adjuntos (imágenes) -----------------------------------------------------
+// Carpeta única `attachments/` en la raíz, con una subcarpeta por página de
+// referencia: la imagen de `Proyectos/PaperBridge.md` va a
+// `attachments/Proyectos/PaperBridge/`. Se referencia con ruta relativa a la
+// raíz del cuaderno.
+
+fn guess_mime(ext: &str) -> &'static str {
+    match ext.to_ascii_lowercase().as_str() {
+        "png" => "image/png",
+        "jpg" | "jpeg" => "image/jpeg",
+        "gif" => "image/gif",
+        "webp" => "image/webp",
+        "svg" => "image/svg+xml",
+        "bmp" => "image/bmp",
+        _ => "application/octet-stream",
+    }
+}
+
+/// Devuelve una ruta libre en `dir` para `filename`, añadiendo -1, -2… si choca.
+fn unique_path(dir: &Path, filename: &str) -> PathBuf {
+    let candidate = dir.join(filename);
+    if !candidate.exists() {
+        return candidate;
+    }
+    let path = Path::new(filename);
+    let stem = path.file_stem().map(|s| s.to_string_lossy().to_string()).unwrap_or_default();
+    let ext = path.extension().map(|s| s.to_string_lossy().to_string());
+    for n in 1.. {
+        let name = match &ext {
+            Some(e) => format!("{stem}-{n}.{e}"),
+            None => format!("{stem}-{n}"),
+        };
+        let c = dir.join(&name);
+        if !c.exists() {
+            return c;
+        }
+    }
+    unreachable!()
+}
+
+/// Abre el diálogo de imagen, copia el fichero a `attachments/<página>/` y
+/// devuelve su ruta relativa (posix). `None` si el usuario cancela.
+#[tauri::command]
+async fn import_attachment(
+    app: AppHandle,
+    state: State<'_, NotebookState>,
+    page: String,
+) -> Result<Option<String>, String> {
+    let root = state.root()?;
+    let Some(file) = app
+        .dialog()
+        .file()
+        .add_filter("Imágenes", &["png", "jpg", "jpeg", "gif", "webp", "svg", "bmp"])
+        .blocking_pick_file()
+    else {
+        return Ok(None);
+    };
+    let src = file.into_path().map_err(|e| e.to_string())?;
+
+    // Carpeta destino: attachments/<ruta de la página sin .md>/
+    let page_stem = page.trim_end_matches(".md");
+    let mut dest_dir = root.join("attachments");
+    for part in page_stem.split('/') {
+        let part = part.trim();
+        if part.is_empty() || part == "." || part == ".." {
+            return Err("Página no válida para adjuntar".into());
+        }
+        dest_dir.push(part);
+    }
+    fs::create_dir_all(&dest_dir).map_err(|e| e.to_string())?;
+    ensure_within(&root, &dest_dir)?;
+
+    let filename = src
+        .file_name()
+        .map(|s| s.to_string_lossy().to_string())
+        .ok_or_else(|| "Nombre de archivo no válido".to_string())?;
+    let dest = unique_path(&dest_dir, &filename);
+    fs::copy(&src, &dest).map_err(|e| format!("No se pudo copiar la imagen: {e}"))?;
+
+    let rel = dest
+        .strip_prefix(&root)
+        .map_err(|_| "Ruta fuera del cuaderno".to_string())?
+        .to_string_lossy()
+        .replace('\\', "/");
+    Ok(Some(rel))
+}
+
+/// Lee un adjunto (ruta relativa a la raíz) y lo devuelve como data-URL, para
+/// que el webview lo muestre sin exponer el sistema de archivos.
+#[tauri::command]
+fn read_attachment(state: State<'_, NotebookState>, rel: String) -> Result<String, String> {
+    let root = state.root()?;
+    let path = safe_join(&root, &rel)?;
+    let bytes = fs::read(&path).map_err(|e| format!("No se pudo leer el adjunto: {e}"))?;
+    let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
+    let mime = guess_mime(ext);
+    use base64::{engine::general_purpose::STANDARD, Engine as _};
+    let b64 = STANDARD.encode(&bytes);
+    Ok(format!("data:{mime};base64,{b64}"))
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -294,7 +444,13 @@ pub fn run() {
             write_page,
             create_page,
             rename_page,
-            delete_page
+            delete_page,
+            read_config,
+            write_config,
+            read_custom_css,
+            write_custom_css,
+            import_attachment,
+            read_attachment
         ])
         .run(tauri::generate_context!())
         .expect("error al arrancar Cuadernillo");
