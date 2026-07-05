@@ -1,0 +1,20 @@
+[package]
+name = "cuadernillo"
+version = "0.1.0"
+description = "Editor markdown WYSIWYG con estructura de cuaderno tipo Zim"
+authors = ["Antonio Rueda"]
+edition = "2021"
+license = "GPL-3.0-only"
+
+[lib]
+name = "cuadernillo_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-dialog = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"

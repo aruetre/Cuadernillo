@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cuadernillo</title>
+  <link rel="stylesheet" href="/src/styles.css" />
+</head>
+<body>
+  <div id="app">
+    <aside id="sidebar">
+      <div id="sidebar-header">
+        <button id="btn-open-notebook" title="Abrir cuaderno">Abrir cuaderno</button>
+        <button id="btn-new-page" title="Nueva página" disabled>+</button>
+      </div>
+      <nav id="tree" aria-label="Páginas del cuaderno">
+        <p class="tree-empty">Ningún cuaderno abierto.<br />Elige una carpeta con ficheros .md o crea una vacía.</p>
+      </nav>
+    </aside>
+    <main id="content">
+      <header id="page-header">
+        <span id="page-path">Cuadernillo</span>
+        <span id="save-status" data-state="idle"></span>
+        <span class="spacer"></span>
+        <button id="btn-rename" disabled>Renombrar</button>
+        <button id="btn-delete" disabled>Eliminar</button>
+      </header>
+      <div id="editor-wrap">
+        <div id="editor"></div>
+        <div id="welcome">
+          <h1>Cuadernillo</h1>
+          <p>Editor markdown WYSIWYG con estructura de cuaderno tipo Zim.</p>
+          <p>Abre un cuaderno para empezar. Cada página es un fichero .md; cada subcarpeta, una rama del árbol.</p>
+        </div>
+      </div>
+    </main>
+  </div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

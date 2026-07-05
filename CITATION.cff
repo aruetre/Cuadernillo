@@ -1,0 +1,9 @@
+cff-version: 1.2.0
+title: Cuadernillo
+message: Si usas este software, cita al autor.
+type: software
+authors:
+  - family-names: Rueda
+    given-names: Antonio
+    website: https://antoniorueda.es
+license: GPL-3.0-only
