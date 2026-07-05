@@ -78,6 +78,24 @@ npm run tauri build                      # binario de producción
 
 > La primera compilación de Rust tarda varios minutos; las siguientes son incrementales y rápidas.
 
+## Publicar una versión (mantenedores)
+
+Los binarios de la sección [Descargas](#descargas) los genera GitHub Actions
+(`.github/workflows/release.yml`) automáticamente. Para publicar:
+
+```bash
+# 1. Sube la versión en package.json y src-tauri/tauri.conf.json (p. ej. 0.2.0)
+# 2. Crea y empuja el tag
+git tag v0.2.0
+git push origin v0.2.0
+```
+
+El workflow compila en Windows y Ubuntu en paralelo (Windows produce
+`.exe`/`.msi`; Ubuntu produce `.deb`, `.rpm` y AppImage), genera los iconos
+desde `app-icon.png` y crea un **Release en borrador** con todo adjunto. Revísalo
+en la pestaña *Releases* y pulsa *Publish* cuando esté listo. También puedes
+lanzarlo a mano desde *Actions → Release → Run workflow*.
+
 ## Funcionalidad actual
 
 - Abrir cualquier carpeta como cuaderno (diálogo nativo).

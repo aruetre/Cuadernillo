@@ -1,0 +1,68 @@
+name: Release
+
+# Compila y publica los binarios al crear un tag "vX.Y.Z" (p. ej. v0.1.0).
+# También se puede lanzar a mano desde la pestaña Actions (workflow_dispatch).
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build:
+    permissions:
+      contents: write            # necesario para crear el Release y subir ficheros
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: 'windows-latest'   # -> .exe (setup NSIS) + .msi
+          - platform: 'ubuntu-22.04'      # -> .deb + .rpm + .AppImage
+    runs-on: ${{ matrix.platform }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Instalar dependencias de sistema (Linux)
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libappindicator3-dev \
+            librsvg2-dev \
+            patchelf \
+            libxdo-dev \
+            libssl-dev \
+            build-essential \
+            file wget curl
+
+      - name: Instalar Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Instalar Rust estable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache de compilación de Rust
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: './src-tauri -> target'
+
+      - name: Instalar dependencias del frontend
+        run: npm install
+
+      - name: Generar iconos desde app-icon.png
+        run: npx tauri icon src-tauri/app-icon.png
+
+      - name: Compilar y publicar (crea/actualiza el Release en borrador)
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: 'Cuadernillo ${{ github.ref_name }}'
+          releaseBody: 'Descarga el binario de tu sistema. Instrucciones en el README.'
+          releaseDraft: true
+          prerelease: false
