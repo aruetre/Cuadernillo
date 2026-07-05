@@ -230,6 +230,26 @@ html, body {
   font-size: var(--doc-font-size, 16.5px);
   line-height: 1.65;
   color: var(--fg-text);
+  caret-color: transparent; /* el caret real lo dibuja el bloque retro */
+}
+
+/* Cursor retro estilo terminal: bloque sólido parpadeante. */
+.retro-caret {
+  position: fixed;
+  background: var(--fg-text);
+  mix-blend-mode: difference;
+  pointer-events: none;
+  z-index: 5;
+  animation: retro-blink 1.1s steps(2, start) infinite;
+}
+@keyframes retro-blink { to { visibility: hidden; } }
+
+/* Bloques CodeMirror: no heredan el caret oculto; cursor en bloque grueso. */
+.milkdown .cm-editor .cm-content { caret-color: auto; }
+.milkdown .cm-editor .cm-cursor,
+.milkdown .cm-editor .cm-cursor-primary {
+  border-left-width: 0.55em;
+  opacity: 0.75;
 }
 
 .milkdown .ProseMirror img {

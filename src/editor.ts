@@ -121,6 +121,74 @@ const enhancePlugin = $prose(
     })
 );
 
+// Garantiza que el documento SIEMPRE termina en un párrafo vacío, para que el
+// cursor pueda salir con ↓ de cualquier bloque (código, tabla, cita) que quede
+// al final. Junto al gap-cursor, evita que el cursor quede atrapado.
+const trailingParagraph = $prose(
+  () =>
+    new Plugin({
+      key: new PluginKey("cuadernillo-trailing"),
+      appendTransaction(_trs, _oldState, state) {
+        const last = state.doc.lastChild;
+        if (last && last.type.name !== "paragraph") {
+          const para = state.schema.nodes.paragraph;
+          if (para) return state.tr.insert(state.doc.content.size, para.create());
+        }
+        return null;
+      },
+    })
+);
+
+// Cursor retro tipo terminal: un bloque sólido parpadeante superpuesto en la
+// posición del cursor (con mezcla "difference" invierte el carácter debajo,
+// como una consola clásica). Oculta el caret nativo por CSS.
+const blockCursor = $prose(
+  () =>
+    new Plugin({
+      key: new PluginKey("cuadernillo-block-cursor"),
+      view(editorView) {
+        const caret = document.createElement("div");
+        caret.className = "retro-caret";
+        document.body.appendChild(caret);
+
+        const update = () => {
+          const sel = editorView.state.selection;
+          if (!editorView.hasFocus() || !sel.empty) {
+            caret.style.display = "none";
+            return;
+          }
+          try {
+            const c = editorView.coordsAtPos(sel.head);
+            const h = Math.max(12, c.bottom - c.top);
+            caret.style.display = "block";
+            caret.style.height = `${h}px`;
+            caret.style.width = `${Math.round(h * 0.55)}px`;
+            caret.style.left = `${c.left}px`;
+            caret.style.top = `${c.top}px`;
+          } catch {
+            caret.style.display = "none";
+          }
+        };
+
+        const onScroll = () => update();
+        document.addEventListener("scroll", onScroll, true);
+        window.addEventListener("resize", onScroll);
+        editorView.dom.addEventListener("focus", update);
+        editorView.dom.addEventListener("blur", () => { caret.style.display = "none"; });
+        update();
+
+        return {
+          update: () => update(),
+          destroy: () => {
+            caret.remove();
+            document.removeEventListener("scroll", onScroll, true);
+            window.removeEventListener("resize", onScroll);
+          },
+        };
+      },
+    })
+);
+
 // --- Resolución de imágenes: src relativo → data-URL (solo en el DOM) ---------
 // El modelo de ProseMirror conserva la ruta relativa (para el markdown); aquí
 // solo cambiamos el src del <img> mostrado, sin afectar a lo que se guarda.
@@ -198,6 +266,8 @@ async function build(): Promise<void> {
     .use(cursor)
     .use(listener)
     .use(enhancePlugin)
+    .use(trailingParagraph)
+    .use(blockCursor)
     .create();
 
   // Observa cambios del DOM del editor para resolver imágenes recién pintadas.
