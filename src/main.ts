@@ -1,3 +1,4 @@
+import "./fonts";
 import { invoke } from "@tauri-apps/api/core";
 import { createEditor, setContent, getContent, focusEditor, insertMarkdown, type NavLink } from "./editor";
 import { renderTree, expandPathTo, type PageNode } from "./tree";

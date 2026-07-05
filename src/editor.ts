@@ -25,7 +25,20 @@ import { listener, listenerCtx } from "@milkdown/kit/plugin/listener";
 import { replaceAll, callCommand, getMarkdown, insert, $prose } from "@milkdown/kit/utils";
 import { Plugin, PluginKey } from "@milkdown/kit/prose/state";
 import { Decoration, DecorationSet } from "@milkdown/kit/prose/view";
+import { codeBlockComponent, codeBlockConfig } from "@milkdown/kit/component/code-block";
+import { languages } from "@codemirror/language-data";
+import { oneDark } from "@codemirror/theme-one-dark";
+import { defaultHighlightStyle, syntaxHighlighting } from "@codemirror/language";
 import { invoke } from "@tauri-apps/api/core";
+
+export type CodeTheme = "dark" | "light";
+
+// Extensiones de CodeMirror según el tema elegido para los bloques de código.
+function codeExtensions(theme: CodeTheme) {
+  return theme === "light"
+    ? [syntaxHighlighting(defaultHighlightStyle)]
+    : [oneDark];
+}
 
 export type OnChange = (markdown: string) => void;
 export interface NavLink { type: "wiki" | "md"; target: string; }
@@ -125,7 +138,10 @@ function resolveImages(): void {
       return;
     }
     if (imgFailed.has(raw)) return; // no machacar el log en cada tecla
-    invoke<string>("read_attachment", { rel: raw })
+    // La ruta puede venir codificada (%20) si el nombre tenía espacios.
+    let rel = raw;
+    try { rel = decodeURIComponent(raw); } catch { /* ruta ya literal */ }
+    invoke<string>("read_attachment", { rel })
       .then((url) => {
         imgCache.set(raw, url);
         img.src = url;
@@ -150,24 +166,32 @@ function scheduleResolveImages(): void {
   window.setTimeout(resolveImages, 400);
 }
 
-export async function createEditor(
-  mount: string,
-  onChange: OnChange,
-  onNavigate: OnNavigate
-): Promise<void> {
-  navigateCb = onNavigate;
+// Parámetros de construcción guardados para poder reconstruir (cambio de tema).
+let mountSel = "#editor";
+let onChangeCb: OnChange = () => {};
+let codeThemeCurrent: CodeTheme = "dark";
+let observer: MutationObserver | null = null;
+
+async function build(): Promise<void> {
   editor = await Editor.make()
     .config((ctx) => {
-      ctx.set(rootCtx, mount);
+      ctx.set(rootCtx, mountSel);
       ctx.set(defaultValueCtx, "");
       ctx.get(listenerCtx).markdownUpdated((_ctx, md, prev) => {
         if (suppress || md === prev) return;
-        onChange(md);
+        onChangeCb(md);
         scheduleResolveImages();
       });
+      // Bloques de código con CodeMirror: todos los lenguajes + tema elegido.
+      ctx.update(codeBlockConfig.key, (prev) => ({
+        ...prev,
+        languages: [...languages],
+        extensions: codeExtensions(codeThemeCurrent),
+      }));
     })
     .use(commonmark)
     .use(gfm)
+    .use(codeBlockComponent)
     .use(history)
     .use(clipboard)
     .use(indent)
@@ -177,15 +201,43 @@ export async function createEditor(
     .create();
 
   // Observa cambios del DOM del editor para resolver imágenes recién pintadas.
-  const target = document.querySelector(mount);
+  const target = document.querySelector(mountSel);
   if (target) {
-    new MutationObserver(() => scheduleResolveImages()).observe(target, {
+    observer = new MutationObserver(() => scheduleResolveImages());
+    observer.observe(target, {
       childList: true,
       subtree: true,
       attributes: true,
       attributeFilter: ["src"],
     });
   }
+}
+
+export async function createEditor(
+  mount: string,
+  onChange: OnChange,
+  onNavigate: OnNavigate,
+  codeTheme: CodeTheme = "dark"
+): Promise<void> {
+  mountSel = mount;
+  onChangeCb = onChange;
+  navigateCb = onNavigate;
+  codeThemeCurrent = codeTheme;
+  await build();
+}
+
+/** Cambia el tema de los bloques de código reconstruyendo el editor. */
+export async function setCodeTheme(theme: CodeTheme): Promise<void> {
+  if (!editor || theme === codeThemeCurrent) return;
+  const md = getContent();
+  codeThemeCurrent = theme;
+  observer?.disconnect();
+  observer = null;
+  try {
+    await editor.destroy();
+  } catch { /* ignore */ }
+  await build();
+  setContent(md);
 }
 
 export function setContent(markdown: string): void {

@@ -359,6 +359,36 @@ fn guess_mime(ext: &str) -> &'static str {
     }
 }
 
+/// Sanea el nombre de un adjunto: los espacios y caracteres problemáticos en
+/// URLs de markdown pasan a '-' (se colapsan y recortan). Conserva letras
+/// unicode (acentos), dígitos, '-' y '_'. Mantiene la extensión.
+fn sanitize_filename(name: &str) -> String {
+    let path = Path::new(name);
+    let stem = path
+        .file_stem()
+        .map(|s| s.to_string_lossy().to_string())
+        .unwrap_or_default();
+    let ext = path.extension().map(|s| s.to_string_lossy().to_string());
+
+    let mut out = String::new();
+    let mut prev_dash = false;
+    for c in stem.chars() {
+        if c.is_alphanumeric() || c == '_' {
+            out.push(c);
+            prev_dash = false;
+        } else if !prev_dash {
+            out.push('-');
+            prev_dash = true;
+        }
+    }
+    let base = out.trim_matches('-').to_string();
+    let base = if base.is_empty() { "imagen".to_string() } else { base };
+    match ext {
+        Some(e) => format!("{base}.{e}"),
+        None => base,
+    }
+}
+
 /// Devuelve una ruta libre en `dir` para `filename`, añadiendo -1, -2… si choca.
 fn unique_path(dir: &Path, filename: &str) -> PathBuf {
     let candidate = dir.join(filename);
@@ -417,6 +447,7 @@ async fn import_attachment(
         .file_name()
         .map(|s| s.to_string_lossy().to_string())
         .ok_or_else(|| "Nombre de archivo no válido".to_string())?;
+    let filename = sanitize_filename(&filename);
     let dest = unique_path(&dest_dir, &filename);
     fs::copy(&src, &dest).map_err(|e| format!("No se pudo copiar la imagen: {e}"))?;
 

@@ -281,6 +281,20 @@ html, body {
   color: inherit;
 }
 
+/* Bloques de código con CodeMirror (componente code-block). */
+.milkdown .cm-editor {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+  margin: 1em 0;
+}
+.milkdown .cm-editor .cm-scroller {
+  font-family: var(--mono);
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+.milkdown .cm-editor.cm-focused { outline: 2px solid var(--accent); outline-offset: 1px; }
+
 .milkdown .ProseMirror blockquote {
   border-left: 3px solid var(--accent);
   background: var(--accent-soft);
