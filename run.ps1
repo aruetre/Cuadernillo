@@ -53,13 +53,11 @@ function Invoke-Setup {
     Assert-Tool npm   "Viene con Node.js."
     Assert-Tool cargo "Instala Rust (toolchain MSVC) desde https://rustup.rs"
 
-    if (-not (Test-Path 'node_modules')) {
-        Write-Step 'Instalando dependencias de npm...'
-        npm install
-        if ($LASTEXITCODE -ne 0) { Fail 'npm install falló.' }
-    } else {
-        Write-Ok 'node_modules ya presente.'
-    }
+    # Siempre se ejecuta: npm install es rápido si no hay cambios, y así se
+    # instalan las dependencias nuevas tras actualizar el código.
+    Write-Step 'Instalando/actualizando dependencias de npm...'
+    npm install
+    if ($LASTEXITCODE -ne 0) { Fail 'npm install falló.' }
 
     if (-not (Test-Path 'src-tauri/icons/icon.ico')) {
         Write-Step 'Generando iconos desde src-tauri/app-icon.png...'
