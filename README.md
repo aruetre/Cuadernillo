@@ -4,6 +4,21 @@ Editor markdown WYSIWYG de escritorio con estructura de cuaderno jerárquico tip
 
 Lo que ves es lo que hay: escribes sobre el documento renderizado, no sobre texto plano ni panel dividido. Los atajos markdown funcionan en vivo: `# ` crea un título, `**texto**` pone negrita, `- ` abre una lista, ``` abre un bloque de código.
 
+## Descargas
+
+Los binarios ya compilados están en la **[página de Releases](https://github.com/aruetre/Cuadernillo/releases/latest)**. Descarga el que corresponda a tu sistema:
+
+| Sistema | Fichero | Notas |
+|---|---|---|
+| **Windows 11** | `Cuadernillo_x.y.z_x64-setup.exe` o `Cuadernillo_x.y.z_x64_en-US.msi` | Instalador. WebView2 ya viene en Windows 11. |
+| **Ubuntu / Debian** | `cuadernillo_x.y.z_amd64.deb` | `sudo apt install ./cuadernillo_*.deb` |
+| **Fedora** | `cuadernillo-x.y.z-1.x86_64.rpm` | `sudo dnf install ./cuadernillo-*.rpm` |
+| **Cualquier Linux** | `cuadernillo_x.y.z_amd64.AppImage` | `chmod +x` y ejecutar. Portable, sin instalar. |
+
+> Los ejecutables no están firmados. En Windows, SmartScreen puede avisar: *Más información → Ejecutar de todas formas*. En Linux, dale permiso de ejecución al AppImage.
+
+Si prefieres compilarlo tú mismo, sigue [Requisitos](#requisitos-comunes) y [Puesta en marcha](#puesta-en-marcha).
+
 ## Modelo de datos (idéntico a Zim)
 
 - Un cuaderno es una carpeta cualquiera del disco.
