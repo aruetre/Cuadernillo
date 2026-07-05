@@ -112,23 +112,28 @@ const enhancePlugin = $prose(
 // El modelo de ProseMirror conserva la ruta relativa (para el markdown); aquí
 // solo cambiamos el src del <img> mostrado, sin afectar a lo que se guarda.
 const imgCache = new Map<string, string>();
+const imgFailed = new Set<string>();
 
 function resolveImages(): void {
   const imgs = document.querySelectorAll<HTMLImageElement>("#editor img");
   imgs.forEach((img) => {
     const raw = img.getAttribute("src") ?? "";
-    if (!raw || /^(data|https?|blob|asset):/i.test(raw)) return;
+    if (!raw || /^(data|https?|blob|asset|file):/i.test(raw)) return;
     const cached = imgCache.get(raw);
     if (cached) {
       if (img.src !== cached) img.src = cached;
       return;
     }
+    if (imgFailed.has(raw)) return; // no machacar el log en cada tecla
     invoke<string>("read_attachment", { rel: raw })
       .then((url) => {
         imgCache.set(raw, url);
         img.src = url;
       })
-      .catch(() => {});
+      .catch((e) => {
+        imgFailed.add(raw);
+        console.error("[Cuadernillo] No se pudo cargar la imagen:", raw, e);
+      });
   });
 }
 
@@ -140,6 +145,9 @@ function scheduleResolveImages(): void {
     imgScheduled = false;
     resolveImages();
   });
+  // Reintentos: la imagen puede pintarse un poco después de la transacción.
+  window.setTimeout(resolveImages, 120);
+  window.setTimeout(resolveImages, 400);
 }
 
 export async function createEditor(

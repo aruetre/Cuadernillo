@@ -6,6 +6,8 @@ import { icon } from "./icons";
 import { openHelp } from "./help";
 import { openTemplates } from "./templates";
 import { openSettings, loadSettings, resetSettings } from "./settings";
+import { openNotePicker } from "./picker";
+import { loadPageIcons, resetPageIcons, getPageIcon, setPageIcon, openIconPicker } from "./pageIcons";
 
 type SaveState = "idle" | "saving" | "saved" | "error";
 
@@ -60,7 +62,15 @@ async function refreshTree(): Promise<void> {
   const nodes = await invoke<PageNode[]>("list_pages");
   pages = [];
   flattenPages(nodes, pages);
-  renderTree(el.tree, nodes, currentPage, openPage);
+  renderTree(el.tree, nodes, currentPage, openPage, {
+    getIcon: getPageIcon,
+    onChangeIcon: (rel, ev) => {
+      openIconPicker(ev.clientX, ev.clientY, getPageIcon(rel), (emoji) => {
+        setPageIcon(rel, emoji);
+        void refreshTree();
+      });
+    },
+  });
 }
 
 async function openNotebook(): Promise<void> {
@@ -73,6 +83,7 @@ async function openNotebook(): Promise<void> {
   showWelcome();
   updatePageButtons();
   await loadSettings();
+  await loadPageIcons();
   await refreshTree();
 }
 
@@ -216,15 +227,11 @@ async function insertImage(): Promise<void> {
 }
 
 function insertWikiLink(): void {
-  const target = window.prompt("Nombre de la nota a enlazar:", "");
-  if (!target) return;
-  insertMarkdown(`[[${target}]]`);
+  // Buscador de notas por nombre; permite también crear una nueva al vuelo.
+  openNotePicker(pages, (target) => insertMarkdown(`[[${target}]]`));
 }
 
-function insertAdmonition(): void {
-  const types = "NOTE, TIP, IMPORTANT, WARNING, CAUTION";
-  const type = (window.prompt(`Tipo de aviso (${types}):`, "NOTE") || "NOTE")
-    .trim().toUpperCase();
+function insertAdmonition(type: string): void {
   insertMarkdown(`> [!${type}]\n> \n`);
 }
 
@@ -346,6 +353,7 @@ async function init(): Promise<void> {
   applyToolbarHidden(localStorage.getItem("cuadernillo.toolbarHidden") === "1");
   applySidebarCollapsed(localStorage.getItem("cuadernillo.sidebarCollapsed") === "1");
   resetSettings();
+  resetPageIcons();
 
   window.addEventListener("blur", () => void flushSave());
   window.addEventListener("beforeunload", () => void flushSave());

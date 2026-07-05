@@ -7,7 +7,64 @@ import { format, insertMarkdown } from "./editor";
 export interface ToolbarHandlers {
   insertImage?: () => void;
   insertWikiLink?: () => void;
-  insertAdmonition?: () => void;
+  insertAdmonition?: (type: string) => void;
+}
+
+// Tipos de aviso (admonition) estilo GitHub, con su icono para el desplegable.
+const ADMONITIONS = [
+  { type: "NOTE", emoji: "ℹ️", label: "Nota", cls: "note" },
+  { type: "TIP", emoji: "💡", label: "Consejo", cls: "tip" },
+  { type: "IMPORTANT", emoji: "❗", label: "Importante", cls: "important" },
+  { type: "WARNING", emoji: "⚠️", label: "Advertencia", cls: "warning" },
+  { type: "CAUTION", emoji: "🛑", label: "Precaución", cls: "caution" },
+];
+
+function buildAdmonitionDropdown(container: HTMLElement, onPick: (type: string) => void): void {
+  const wrap = document.createElement("div");
+  wrap.className = "tbtn-dropdown";
+
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "tbtn";
+  btn.title = "Bloque de aviso (admonition)";
+  btn.setAttribute("aria-label", "Insertar bloque de aviso");
+  btn.setAttribute("aria-haspopup", "true");
+  btn.innerHTML = icon("admonition");
+
+  const menu = document.createElement("div");
+  menu.className = "tbtn-menu";
+  for (const a of ADMONITIONS) {
+    const mi = document.createElement("button");
+    mi.type = "button";
+    mi.className = `tbtn-menu-item adm-menu-${a.cls}`;
+    mi.innerHTML = `<span class="adm-menu-icon">${a.emoji}</span><span>${a.label}</span>`;
+    mi.addEventListener("mousedown", (e) => {
+      e.preventDefault();
+      close();
+      onPick(a.type);
+    });
+    menu.appendChild(mi);
+  }
+
+  const onOutside = (e: MouseEvent) => { if (!wrap.contains(e.target as Node)) close(); };
+  const onEsc = (e: KeyboardEvent) => { if (e.key === "Escape") close(); };
+  function open(): void {
+    menu.classList.add("open");
+    document.addEventListener("mousedown", onOutside, true);
+    document.addEventListener("keydown", onEsc);
+  }
+  function close(): void {
+    menu.classList.remove("open");
+    document.removeEventListener("mousedown", onOutside, true);
+    document.removeEventListener("keydown", onEsc);
+  }
+  btn.addEventListener("mousedown", (e) => {
+    e.preventDefault();
+    menu.classList.contains("open") ? close() : open();
+  });
+
+  wrap.append(btn, menu);
+  container.appendChild(wrap);
 }
 
 interface Btn {
@@ -53,14 +110,12 @@ export function buildToolbar(container: HTMLElement, handlers: ToolbarHandlers =
     ],
   ];
 
-  // Grupo de acciones de fases posteriores, solo si hay handler.
+  // Grupo de acciones de contenido (imagen, vínculo), solo si hay handler.
   const extra: Btn[] = [];
   if (handlers.insertImage)
     extra.push({ id: "image", icon: "image", title: "Insertar imagen", action: handlers.insertImage });
   if (handlers.insertWikiLink)
     extra.push({ id: "wiki", icon: "wiki", title: "Vínculo a nota [[…]]", action: handlers.insertWikiLink });
-  if (handlers.insertAdmonition)
-    extra.push({ id: "admonition", icon: "admonition", title: "Bloque de aviso (admonition)", action: handlers.insertAdmonition });
   if (extra.length) groups.push(extra);
 
   groups.forEach((group, i) => {
@@ -85,4 +140,12 @@ export function buildToolbar(container: HTMLElement, handlers: ToolbarHandlers =
       container.appendChild(btn);
     }
   });
+
+  // Desplegable de admonitions al final (tipos con icono).
+  if (handlers.insertAdmonition) {
+    const sep = document.createElement("span");
+    sep.className = "toolbar-sep";
+    container.appendChild(sep);
+    buildAdmonitionDropdown(container, handlers.insertAdmonition);
+  }
 }

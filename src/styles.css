@@ -426,6 +426,57 @@ button svg { pointer-events: none; }
 .tree-row.active .tree-icon { color: #fff; }
 .tree-row.has-page .tree-icon { color: var(--fg-sidebar); }
 
+.tree-emoji {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  line-height: 1;
+}
+
+/* ---------- Selector de icono de página ---------- */
+
+.icon-picker {
+  position: fixed;
+  z-index: 200;
+  background: var(--bg-paper);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.25);
+  padding: 8px;
+  color: var(--fg-text);
+}
+.icon-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 2px;
+}
+.icon-picker-emoji {
+  width: 30px;
+  height: 30px;
+  border: none;
+  background: transparent;
+  border-radius: 5px;
+  font-size: 17px;
+  cursor: pointer;
+  line-height: 1;
+}
+.icon-picker-emoji:hover { background: var(--accent-soft); }
+.icon-picker-emoji.current { background: var(--accent-soft); outline: 2px solid var(--accent); }
+.icon-picker-clear {
+  width: 100%;
+  margin-top: 6px;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: transparent;
+  color: var(--fg-muted);
+  cursor: pointer;
+  font: inherit;
+  font-size: 12.5px;
+}
+.icon-picker-clear:hover { background: var(--bg-chrome); color: var(--danger); }
+
 /* ---------- Modal (ayuda / ajustes) ---------- */
 
 .modal-overlay {
@@ -623,3 +674,97 @@ button svg { pointer-events: none; }
   line-height: 1.5;
 }
 .settings-file { font-size: 13px; }
+
+/* ---------- Desplegable de la barra (admonitions) ---------- */
+
+.tbtn-dropdown { position: relative; display: inline-flex; }
+
+.tbtn-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  display: none;
+  flex-direction: column;
+  min-width: 190px;
+  padding: 4px;
+  background: var(--bg-paper);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+  z-index: 50;
+}
+.tbtn-menu.open { display: flex; }
+
+.tbtn-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 10px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  font-size: 13.5px;
+  color: var(--fg-text);
+}
+.tbtn-menu-item:hover { background: var(--accent-soft); }
+.adm-menu-icon { font-size: 15px; width: 20px; text-align: center; }
+
+/* ---------- Buscador de notas (vínculo [[…]]) ---------- */
+
+.picker-overlay { align-items: flex-start; }
+
+.picker {
+  margin-top: 12vh;
+  width: min(560px, 92vw);
+  background: var(--bg-paper);
+  border-radius: 10px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transform: translateY(6px);
+  transition: transform 140ms ease;
+}
+.picker-overlay.visible .picker { transform: translateY(0); }
+
+.picker-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
+  color: var(--fg-muted);
+}
+.picker-search input {
+  flex: 1;
+  border: none;
+  outline: none;
+  background: transparent;
+  font: inherit;
+  font-size: 15px;
+  color: var(--fg-text);
+}
+
+.picker-list { max-height: 50vh; overflow-y: auto; padding: 6px; }
+
+.picker-item {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  width: 100%;
+  text-align: left;
+  padding: 8px 12px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+  color: var(--fg-text);
+}
+.picker-item.active, .picker-item:hover { background: var(--accent-soft); }
+.picker-primary { font-size: 14px; }
+.picker-item.create .picker-primary { color: var(--accent); font-weight: 600; }
+.picker-secondary { font-size: 12px; color: var(--fg-muted); font-family: var(--mono); }
+.picker-empty { padding: 16px; color: var(--fg-muted); text-align: center; }

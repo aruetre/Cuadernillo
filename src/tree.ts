@@ -10,9 +10,22 @@ import { iconEl } from "./icons";
 
 export type OnSelect = (relPath: string) => void;
 
-const expanded = new Set<string>();
+export interface TreeOptions {
+  getIcon?: (rel: string) => string | undefined;
+  onChangeIcon?: (rel: string, ev: MouseEvent) => void;
+}
 
-export function renderTree(container: HTMLElement, nodes: PageNode[], activePath: string | null, onSelect: OnSelect): void {
+const expanded = new Set<string>();
+let opts: TreeOptions = {};
+
+export function renderTree(
+  container: HTMLElement,
+  nodes: PageNode[],
+  activePath: string | null,
+  onSelect: OnSelect,
+  options: TreeOptions = {}
+): void {
+  opts = options;
   container.innerHTML = "";
   if (nodes.length === 0) {
     const p = document.createElement("p");
@@ -50,10 +63,18 @@ function buildNode(node: PageNode, activePath: string | null, onSelect: OnSelect
   twisty.textContent = hasChildren ? (isOpen ? "▾" : "▸") : "";
   row.appendChild(twisty);
 
-  // Icono: carpeta si es un directorio sin página propia; página en el resto.
-  const kind = node.is_dir && !node.rel_path ? "folder" : "page";
-  const ic = iconEl(kind);
-  ic.classList.add("tree-icon");
+  // Icono: emoji personalizado si lo tiene; si no, carpeta o página.
+  const custom = node.rel_path ? opts.getIcon?.(node.rel_path) : undefined;
+  let ic: Element;
+  if (custom) {
+    ic = document.createElement("span");
+    ic.className = "tree-icon tree-emoji";
+    ic.textContent = custom;
+  } else {
+    const kind = node.is_dir && !node.rel_path ? "folder" : "page";
+    ic = iconEl(kind);
+    ic.classList.add("tree-icon");
+  }
   row.appendChild(ic);
 
   const label = document.createElement("span");
@@ -100,6 +121,14 @@ function buildNode(node: PageNode, activePath: string | null, onSelect: OnSelect
       row.click();
     }
   });
+
+  // Clic derecho sobre una página: cambiar su icono.
+  if (node.rel_path) {
+    row.addEventListener("contextmenu", (e) => {
+      e.preventDefault();
+      opts.onChangeIcon?.(node.rel_path, e);
+    });
+  }
 
   return wrap;
 }

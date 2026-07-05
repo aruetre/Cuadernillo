@@ -331,6 +331,16 @@ fn write_custom_css(state: State<'_, NotebookState>, content: String) -> Result<
     write_dot_file(&state.root()?, "custom.css", &content)
 }
 
+#[tauri::command]
+fn read_page_icons(state: State<'_, NotebookState>) -> Result<String, String> {
+    read_dot_file(&state.root()?, "page-icons.json")
+}
+
+#[tauri::command]
+fn write_page_icons(state: State<'_, NotebookState>, content: String) -> Result<(), String> {
+    write_dot_file(&state.root()?, "page-icons.json", &content)
+}
+
 // --- Adjuntos (imágenes) -----------------------------------------------------
 // Carpeta única `attachments/` en la raíz, con una subcarpeta por página de
 // referencia: la imagen de `Proyectos/PaperBridge.md` va a
@@ -449,6 +459,8 @@ pub fn run() {
             write_config,
             read_custom_css,
             write_custom_css,
+            read_page_icons,
+            write_page_icons,
             import_attachment,
             read_attachment
         ])
