@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import { ensureLibraryLoaded, searchIcons, renderIconSvg } from "./iconLibrary";
 
 // Icono personalizado por página (emoji), guardado por cuaderno en
 // .cuadernillo/page-icons.json como { "rel/path.md": "📌", ... }.
@@ -41,12 +42,37 @@ const EMOJIS = [
 
 let picker: HTMLElement | null = null;
 
-/** Abre un selector de emoji anclado en (x, y). onPick(null) quita el icono. */
-export function openIconPicker(x: number, y: number, current: string | undefined, onPick: (emoji: string | null) => void): void {
+/**
+ * Selector de icono de página anclado en (x, y). Permite buscar entre miles de
+ * iconos de las librerías (Iconify) o elegir un emoji rápido. `onPick` recibe el
+ * emoji, la cadena SVG del icono elegido, o null para quitarlo.
+ */
+export function openIconPicker(x: number, y: number, current: string | undefined, onPick: (value: string | null) => void): void {
   closeIconPicker();
 
   picker = document.createElement("div");
   picker.className = "icon-picker";
+
+  // Buscador de librerías de iconos.
+  const search = document.createElement("input");
+  search.type = "text";
+  search.className = "icon-picker-input";
+  search.placeholder = "Buscar icono (Lucide, Tabler, Phosphor…)";
+  picker.appendChild(search);
+
+  const results = document.createElement("div");
+  results.className = "icon-picker-results";
+  const hint = document.createElement("div");
+  hint.className = "icon-picker-hint";
+  hint.textContent = "Cargando librerías…";
+  results.appendChild(hint);
+  picker.appendChild(results);
+
+  // Emojis de acceso rápido.
+  const sub = document.createElement("div");
+  sub.className = "icon-picker-sublabel";
+  sub.textContent = "Emojis";
+  picker.appendChild(sub);
 
   const grid = document.createElement("div");
   grid.className = "icon-picker-grid";
@@ -76,10 +102,48 @@ export function openIconPicker(x: number, y: number, current: string | undefined
   picker.style.left = `${Math.max(8, px)}px`;
   picker.style.top = `${Math.max(8, py)}px`;
 
+  // Carga perezosa de las librerías y búsqueda en vivo.
+  let ready = false;
+  const renderResults = () => {
+    if (!ready) return;
+    const q = search.value.trim();
+    results.innerHTML = "";
+    if (!q) {
+      const h = document.createElement("div");
+      h.className = "icon-picker-hint";
+      h.textContent = "Escribe para buscar entre miles de iconos";
+      results.appendChild(h);
+      return;
+    }
+    const ids = searchIcons(q, 60);
+    if (ids.length === 0) {
+      const h = document.createElement("div");
+      h.className = "icon-picker-hint";
+      h.textContent = "Sin resultados";
+      results.appendChild(h);
+      return;
+    }
+    for (const id of ids) {
+      const svg = renderIconSvg(id);
+      if (!svg) continue;
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "icon-picker-libicon";
+      b.title = id;
+      b.innerHTML = svg;
+      b.addEventListener("mousedown", (ev) => { ev.preventDefault(); closeIconPicker(); onPick(svg); });
+      results.appendChild(b);
+    }
+  };
+
+  void ensureLibraryLoaded().then(() => { ready = true; renderResults(); });
+  search.addEventListener("input", renderResults);
+
   setTimeout(() => {
     document.addEventListener("mousedown", onOutside, true);
     document.addEventListener("keydown", onEsc);
   }, 0);
+  search.focus();
 }
 
 function onOutside(e: MouseEvent): void {

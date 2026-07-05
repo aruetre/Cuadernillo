@@ -69,7 +69,9 @@ function buildNode(node: PageNode, activePath: string | null, onSelect: OnSelect
   if (custom) {
     ic = document.createElement("span");
     ic.className = "tree-icon tree-emoji";
-    ic.textContent = custom;
+    // Valor guardado: SVG de librería (Iconify) o un emoji.
+    if (custom.trim().startsWith("<svg")) ic.innerHTML = custom;
+    else ic.textContent = custom;
   } else {
     const kind = node.is_dir && !node.rel_path ? "folder" : "page";
     ic = iconEl(kind);
