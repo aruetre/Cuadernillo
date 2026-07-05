@@ -42,9 +42,47 @@ const PATHS: Record<string, string> = {
   close: `<line x1="6" y1="6" x2="18" y2="18" ${P}/><line x1="18" y1="6" x2="6" y2="18" ${P}/>`,
 };
 
-export function icon(name: keyof typeof PATHS | string): string {
+// Iconos de la interfaz servidos desde Lucide (Iconify), importado de forma
+// estática para poder renderizar de manera síncrona al arrancar. Cada nombre
+// interno se mapea a un icono de Lucide; si el mapeo falla, se usa el SVG
+// dibujado a mano de arriba como respaldo, así nunca falta un icono.
+import lucide from "@iconify-json/lucide/icons.json";
+import { getIconData, iconToSVG, iconToHTML, replaceIDs } from "@iconify/utils";
+
+const LUCIDE: Record<string, string> = {
+  bold: "bold", italic: "italic", strike: "strikethrough", code: "code",
+  h1: "heading-1", h2: "heading-2", h3: "heading-3", paragraph: "pilcrow",
+  ul: "list", ol: "list-ordered", quote: "quote", codeblock: "square-code",
+  hr: "minus", table: "table", image: "image", link: "link", wiki: "brackets",
+  admonition: "triangle-alert", eye: "eye", markup: "code-xml",
+  help: "circle-help", template: "layout-template", settings: "settings",
+  sidebar: "panel-left", toolbar: "panel-top", plus: "plus",
+  folder: "folder", page: "file-text", pencil: "pencil", trash: "trash-2",
+  open: "folder-open", close: "x",
+};
+
+function lucideSvg(name: string): string | null {
+  const id = LUCIDE[name];
+  if (!id) return null;
+  const data = getIconData(lucide as never, id);
+  if (!data) return null;
+  const built = iconToSVG(data, { height: "1em" });
+  return iconToHTML(replaceIDs(built.body), {
+    ...built.attributes,
+    width: "18",
+    height: "18",
+    "aria-hidden": "true",
+    focusable: "false",
+  });
+}
+
+function handDrawn(name: string): string {
   const body = PATHS[name] ?? "";
   return `<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false">${body}</svg>`;
+}
+
+export function icon(name: keyof typeof PATHS | string): string {
+  return lucideSvg(name) ?? handDrawn(name);
 }
 
 export function iconEl(name: string): SVGElement {
