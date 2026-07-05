@@ -65,7 +65,39 @@ Ejecuta todos los comandos desde **PowerShell** (o CMD), con el proyecto en una 
 
 ## Puesta en marcha
 
-Los comandos son los mismos en ambos sistemas (en Windows, desde PowerShell):
+### Windows: script `run.ps1`
+
+En Windows lo más cómodo es el script de PowerShell incluido, que prepara el
+entorno (instala dependencias y **genera los iconos si faltan**) y arranca:
+
+```powershell
+.\run.ps1            # setup + arrancar en desarrollo
+.\run.ps1 build      # compilar el .exe + .msi
+.\run.ps1 setup      # solo preparar el entorno
+.\run.ps1 release 0.2.0   # subir versión, tag y push (dispara el release en CI)
+```
+
+> **Si PowerShell bloquea el script** con *«no está firmado digitalmente»
+> (`UnauthorizedAccess`)*, es la directiva de ejecución de Windows, no un fallo
+> del script. Autoriza los scripts **solo en esa ventana** (no necesita admin y
+> se revierte al cerrarla) ejecutando esto **antes** del script:
+>
+> ```powershell
+> Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
+> .\run.ps1
+> ```
+>
+> Para no repetirlo, hazlo permanente para tu usuario una sola vez y desbloquea
+> el archivo (que Windows marca como «descargado de Internet»):
+>
+> ```powershell
+> Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned -Force
+> Unblock-File .\run.ps1
+> ```
+
+### Comandos manuales (Linux y Windows)
+
+Equivalen a lo que hace el script, y son la vía en Linux:
 
 ```bash
 npm install
