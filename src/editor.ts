@@ -68,10 +68,24 @@ const enhancePlugin = $prose(
               WIKI_RE.lastIndex = 0;
               let m: RegExpExecArray | null;
               while ((m = WIKI_RE.exec(text))) {
-                const from = pos + m.index;
-                decos.push(
-                  Decoration.inline(from, from + m[0].length, { class: "wikilink" })
-                );
+                const start = pos + m.index;
+                const end = start + m[0].length;
+                const openTo = start + 2;      // tras "[["
+                const closeFrom = end - 2;     // antes de "]]"
+                const inner = m[1];
+                const pipe = inner.indexOf("|");
+                const target = (pipe >= 0 ? inner.slice(0, pipe) : inner).trim();
+                // Oculta los corchetes.
+                decos.push(Decoration.inline(start, openTo, { class: "wiki-mark" }));
+                decos.push(Decoration.inline(closeFrom, end, { class: "wiki-mark" }));
+                if (pipe >= 0) {
+                  // Con alias: oculta "destino|" y muestra solo el alias.
+                  const aliasStart = openTo + pipe + 1;
+                  decos.push(Decoration.inline(openTo, aliasStart, { class: "wiki-mark" }));
+                  decos.push(Decoration.inline(aliasStart, closeFrom, { class: "wikilink", "data-target": target }));
+                } else {
+                  decos.push(Decoration.inline(openTo, closeFrom, { class: "wikilink", "data-target": target }));
+                }
               }
               const adm = ADM_RE.exec(text.trim());
               if (adm) {
@@ -101,9 +115,9 @@ const enhancePlugin = $prose(
           const el = event.target as HTMLElement;
           const wiki = el.closest(".wikilink");
           if (wiki) {
-            const mm = /\[\[([^\]]+)\]\]/.exec(wiki.textContent ?? "");
-            if (mm) {
-              navigateCb({ type: "wiki", target: mm[1].split("|")[0].trim() });
+            const target = wiki.getAttribute("data-target") ?? "";
+            if (target) {
+              navigateCb({ type: "wiki", target });
               return true;
             }
           }
@@ -248,6 +262,7 @@ let codeThemeCurrent: CodeTheme = "dark";
 let observer: MutationObserver | null = null;
 
 async function build(): Promise<void> {
+  document.documentElement.setAttribute("data-code-theme", codeThemeCurrent);
   editor = await Editor.make()
     .config((ctx) => {
       ctx.set(rootCtx, mountSel);

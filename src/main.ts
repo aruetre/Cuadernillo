@@ -17,7 +17,8 @@ const el = {
   app: document.getElementById("app") as HTMLElement,
   tree: document.getElementById("tree") as HTMLElement,
   outline: document.getElementById("outline") as HTMLElement,
-  outlineHeader: document.getElementById("outline-header") as HTMLButtonElement,
+  btnToggleOutline: document.getElementById("btn-toggle-outline") as HTMLButtonElement,
+  btnOutlineClose: document.getElementById("btn-outline-close") as HTMLButtonElement,
   editor: document.getElementById("editor") as HTMLElement,
   editorWrap: document.getElementById("editor-wrap") as HTMLElement,
   sourceView: document.getElementById("source-view") as HTMLTextAreaElement,
@@ -468,8 +469,8 @@ function applySidebarCollapsed(collapsed: boolean): void {
 }
 
 function applyOutlineCollapsed(collapsed: boolean): void {
-  document.getElementById("outline-section")?.classList.toggle("collapsed", collapsed);
-  el.outlineHeader.setAttribute("aria-expanded", collapsed ? "false" : "true");
+  el.app.classList.toggle("outline-collapsed", collapsed);
+  el.btnToggleOutline.setAttribute("aria-pressed", collapsed ? "false" : "true");
   localStorage.setItem("cuadernillo.outlineCollapsed", collapsed ? "1" : "0");
 }
 
@@ -479,6 +480,8 @@ function setupHeaderIcons(): void {
   el.btnNew.innerHTML = icon("plus");
   el.btnToggleSidebar.innerHTML = icon("sidebar");
   el.btnToggleToolbar.innerHTML = icon("toolbar");
+  el.btnToggleOutline.innerHTML = icon("outline");
+  el.btnOutlineClose.innerHTML = icon("close");
   el.btnView.innerHTML = icon("markup");
   el.btnCopyDoc.innerHTML = icon("copy");
   el.btnTemplates.innerHTML = icon("template");
@@ -514,10 +517,9 @@ async function init(): Promise<void> {
     applyToolbarHidden(!el.toolbar.classList.contains("hidden")));
   el.btnToggleSidebar.addEventListener("click", () =>
     applySidebarCollapsed(!el.app.classList.contains("sidebar-collapsed")));
-  el.outlineHeader.addEventListener("click", () => {
-    const sec = document.getElementById("outline-section");
-    applyOutlineCollapsed(!sec?.classList.contains("collapsed"));
-  });
+  el.btnToggleOutline.addEventListener("click", () =>
+    applyOutlineCollapsed(!el.app.classList.contains("outline-collapsed")));
+  el.btnOutlineClose.addEventListener("click", () => applyOutlineCollapsed(true));
 
   el.sourceView.addEventListener("input", () => {
     if (sourceMode) scheduleSave(el.sourceView.value);

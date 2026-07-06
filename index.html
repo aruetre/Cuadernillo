@@ -19,10 +19,6 @@
       <nav id="tree" aria-label="Páginas del cuaderno">
         <p class="tree-empty">Ningún cuaderno abierto.<br />Elige una carpeta con ficheros .md o crea una vacía.</p>
       </nav>
-      <div id="outline-section">
-        <button id="outline-header" type="button" aria-expanded="true">Índice del documento</button>
-        <nav id="outline" aria-label="Títulos del documento"></nav>
-      </div>
     </aside>
     <main id="content">
       <header id="page-header">
@@ -31,6 +27,7 @@
         <span id="save-status" data-state="idle"></span>
         <span class="spacer"></span>
         <button id="btn-toggle-toolbar" class="icon-btn" title="Ocultar/mostrar barra de herramientas" aria-label="Ocultar o mostrar la barra de herramientas"></button>
+        <button id="btn-toggle-outline" class="icon-btn" title="Mostrar/ocultar índice" aria-label="Mostrar u ocultar el índice"></button>
         <button id="btn-view" class="icon-btn" title="Ver código markdown" aria-label="Alternar vista de código y formato" disabled></button>
         <button id="btn-copy-doc" class="icon-btn" title="Copiar todo el documento" aria-label="Copiar documento" disabled></button>
         <button id="btn-templates" class="icon-btn" title="Plantillas" aria-label="Insertar plantilla" disabled></button>
@@ -51,6 +48,13 @@
         </div>
       </div>
     </main>
+    <aside id="outline-panel">
+      <div id="outline-panel-header">
+        <span>Índice</span>
+        <button id="btn-outline-close" class="icon-btn" title="Ocultar índice" aria-label="Ocultar índice"></button>
+      </div>
+      <nav id="outline" aria-label="Títulos del documento"></nav>
+    </aside>
   </div>
   <script type="module" src="/src/main.ts"></script>
 </body>
