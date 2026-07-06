@@ -83,14 +83,15 @@ Severidad: 🔴 alta · 🟠 media · 🟡 baja.
 
 | Pedido | Estado | Nota |
 |---|---|---|
-| Alineación de **imágenes** (izq/centro/der) | ⏳ pendiente | vía limpia (título del markdown), listo para implementar |
+| Alineación de **imágenes** (izq/centro/der) | ✅ hecho | título del markdown + CSS |
 | Justificación de **texto** | ❌ descartado | el usuario pidió no hacerlo (rompería el markdown puro) |
-| **Recordar el último cuaderno** abierto | ⏳ pendiente | guardar la ruta y reabrir al arrancar |
-| **Intercambiador rápido** de cuadernos | ⏳ pendiente | lista de recientes + cambio |
-| Panel de **navegación por títulos** (outline) | ⏳ pendiente | índice del documento clicable |
-| Botones **insertar fecha / hora** | ⏳ pendiente | rápido |
-| **Copiar todo el documento** (fuente o vista) | ⏳ pendiente | rápido |
-| Arreglar UI del **bloque de código** (D7) | ⏳ pendiente | necesita inspección en vivo |
+| **Recordar el último cuaderno** abierto | ✅ hecho | recientes en config de la app + auto-open |
+| **Intercambiador rápido** de cuadernos | ✅ hecho | menú de recientes en la barra lateral |
+| Panel de **navegación por títulos** (outline) | ✅ hecho | `outline.ts`, panel plegable |
+| Botones **insertar fecha / hora** | ✅ hecho | en la barra de herramientas |
+| **Copiar todo el documento** (fuente o vista) | ✅ hecho | menú en la cabecera |
+| Arreglar UI del **bloque de código** (D7) | ⏳ pendiente | necesita inspección del DOM en la app corriendo |
+| Salir del **bloque CodeMirror** con teclado | ⏳ por verificar | mitigado con párrafo final + gap-cursor |
 
 ### Roadmap original del README (sigue vigente en parte)
 - Búsqueda de texto completo en el cuaderno.
