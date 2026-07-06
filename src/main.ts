@@ -9,12 +9,15 @@ import { openTemplates } from "./templates";
 import { openSettings, loadSettings, resetSettings } from "./settings";
 import { openNotePicker } from "./picker";
 import { loadPageIcons, resetPageIcons, getPageIcon, setPageIcon, openIconPicker } from "./pageIcons";
+import { renderOutline } from "./outline";
 
 type SaveState = "idle" | "saving" | "saved" | "error";
 
 const el = {
   app: document.getElementById("app") as HTMLElement,
   tree: document.getElementById("tree") as HTMLElement,
+  outline: document.getElementById("outline") as HTMLElement,
+  outlineHeader: document.getElementById("outline-header") as HTMLButtonElement,
   editor: document.getElementById("editor") as HTMLElement,
   editorWrap: document.getElementById("editor-wrap") as HTMLElement,
   sourceView: document.getElementById("source-view") as HTMLTextAreaElement,
@@ -37,6 +40,7 @@ const el = {
 let notebookRoot: string | null = null;
 let currentPage: string | null = null;
 let saveTimer: number | undefined;
+let outlineTimer: number | undefined;
 let pendingMarkdown: string | null = null;
 let sourceMode = false;
 // Lista plana de páginas (rel_path + nombre) para resolver vínculos.
@@ -97,6 +101,7 @@ async function openPage(relPath: string): Promise<void> {
   el.pagePath.textContent = relPath;
   el.editorWrap.classList.add("has-page");
   setContent(content);
+  renderOutline(el.outline, content, gotoHeading);
   if (sourceMode) el.sourceView.value = content;
   setSaveState("idle");
   updatePageButtons();
@@ -108,6 +113,7 @@ async function openPage(relPath: string): Promise<void> {
 function showWelcome(): void {
   el.editorWrap.classList.remove("has-page");
   setViewMode(false);
+  clearOutline();
 }
 
 function scheduleSave(markdown: string): void {
@@ -115,6 +121,25 @@ function scheduleSave(markdown: string): void {
   setSaveState("saving");
   window.clearTimeout(saveTimer);
   saveTimer = window.setTimeout(() => void flushSave(), 800);
+  scheduleOutline(markdown);
+}
+
+// --- Índice / navegación por títulos -----------------------------------------
+
+function gotoHeading(index: number): void {
+  const hs = document.querySelectorAll<HTMLElement>(
+    "#editor .ProseMirror h1, #editor .ProseMirror h2, #editor .ProseMirror h3, #editor .ProseMirror h4, #editor .ProseMirror h5, #editor .ProseMirror h6"
+  );
+  hs[index]?.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function scheduleOutline(markdown: string): void {
+  window.clearTimeout(outlineTimer);
+  outlineTimer = window.setTimeout(() => renderOutline(el.outline, markdown, gotoHeading), 400);
+}
+
+function clearOutline(): void {
+  el.outline.innerHTML = "";
 }
 
 async function flushSave(): Promise<void> {
@@ -379,6 +404,12 @@ function applySidebarCollapsed(collapsed: boolean): void {
   localStorage.setItem("cuadernillo.sidebarCollapsed", collapsed ? "1" : "0");
 }
 
+function applyOutlineCollapsed(collapsed: boolean): void {
+  document.getElementById("outline-section")?.classList.toggle("collapsed", collapsed);
+  el.outlineHeader.setAttribute("aria-expanded", collapsed ? "false" : "true");
+  localStorage.setItem("cuadernillo.outlineCollapsed", collapsed ? "1" : "0");
+}
+
 function setupHeaderIcons(): void {
   el.btnOpen.insertAdjacentHTML("afterbegin", icon("open"));
   el.btnNew.innerHTML = icon("plus");
@@ -418,6 +449,10 @@ async function init(): Promise<void> {
     applyToolbarHidden(!el.toolbar.classList.contains("hidden")));
   el.btnToggleSidebar.addEventListener("click", () =>
     applySidebarCollapsed(!el.app.classList.contains("sidebar-collapsed")));
+  el.outlineHeader.addEventListener("click", () => {
+    const sec = document.getElementById("outline-section");
+    applyOutlineCollapsed(!sec?.classList.contains("collapsed"));
+  });
 
   el.sourceView.addEventListener("input", () => {
     if (sourceMode) scheduleSave(el.sourceView.value);
@@ -425,6 +460,7 @@ async function init(): Promise<void> {
 
   applyToolbarHidden(localStorage.getItem("cuadernillo.toolbarHidden") === "1");
   applySidebarCollapsed(localStorage.getItem("cuadernillo.sidebarCollapsed") === "1");
+  applyOutlineCollapsed(localStorage.getItem("cuadernillo.outlineCollapsed") === "1");
   resetSettings();
   resetPageIcons();
 
