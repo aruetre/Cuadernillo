@@ -48,8 +48,11 @@ html, body {
 
 #sidebar-header {
   display: flex;
+  align-items: center;
   gap: 6px;
-  padding: 10px;
+  padding: 0 10px;
+  height: 46px;
+  box-sizing: border-box;
   border-bottom: 1px solid #14171b;
 }
 
@@ -140,7 +143,9 @@ html, body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 6px 8px 6px 14px;
+  padding: 0 8px 0 14px;
+  height: 46px;
+  box-sizing: border-box;
   border-bottom: 1px solid var(--border);
   font-size: 11px;
   text-transform: uppercase;
@@ -186,6 +191,8 @@ html, body {
   align-items: center;
   gap: 12px;
   padding: 8px 16px;
+  height: 46px;
+  box-sizing: border-box;
   border-bottom: 1px solid var(--border);
   background: var(--bg-chrome);
   font-size: 13px;
@@ -385,7 +392,7 @@ html, body {
 .milkdown .milkdown-code-block .tools {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: space-between;
   gap: 6px;
   padding: 6px 8px;
 }
