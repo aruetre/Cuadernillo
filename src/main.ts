@@ -38,6 +38,7 @@ const el = {
   btnTemplates: document.getElementById("btn-templates") as HTMLButtonElement,
   btnSettings: document.getElementById("btn-settings") as HTMLButtonElement,
   btnHelp: document.getElementById("btn-help") as HTMLButtonElement,
+  btnTheme: document.getElementById("btn-theme") as HTMLButtonElement,
   tbMin: document.getElementById("tb-min") as HTMLButtonElement,
   tbMax: document.getElementById("tb-max") as HTMLButtonElement,
   tbClose: document.getElementById("tb-close") as HTMLButtonElement,
@@ -472,6 +473,18 @@ function applySidebarCollapsed(collapsed: boolean): void {
   localStorage.setItem("cuadernillo.sidebarCollapsed", collapsed ? "1" : "0");
 }
 
+function applyTheme(theme: "light" | "dark"): void {
+  document.documentElement.setAttribute("data-theme", theme);
+  // El botón muestra el icono del tema al que cambiaría.
+  el.btnTheme.innerHTML = icon(theme === "dark" ? "sun" : "moon");
+  localStorage.setItem("cuadernillo.theme", theme);
+}
+
+function toggleTheme(): void {
+  const current = document.documentElement.getAttribute("data-theme") === "dark" ? "dark" : "light";
+  applyTheme(current === "dark" ? "light" : "dark");
+}
+
 function applyOutlineCollapsed(collapsed: boolean): void {
   el.app.classList.toggle("outline-collapsed", collapsed);
   el.btnToggleOutline.setAttribute("aria-pressed", collapsed ? "false" : "true");
@@ -524,6 +537,7 @@ async function init(): Promise<void> {
   el.btnRename.addEventListener("click", () => void renamePage());
   el.btnDelete.addEventListener("click", () => void deletePage());
   el.btnHelp.addEventListener("click", () => openHelp());
+  el.btnTheme.addEventListener("click", () => toggleTheme());
   el.btnTemplates.addEventListener("click", () => openTemplates(pageTitle()));
   el.btnSettings.addEventListener("click", () => openSettings());
   el.btnView.addEventListener("click", () => toggleView());
@@ -540,6 +554,7 @@ async function init(): Promise<void> {
     if (sourceMode) scheduleSave(el.sourceView.value);
   });
 
+  applyTheme(localStorage.getItem("cuadernillo.theme") === "dark" ? "dark" : "light");
   applyToolbarHidden(localStorage.getItem("cuadernillo.toolbarHidden") === "1");
   applySidebarCollapsed(localStorage.getItem("cuadernillo.sidebarCollapsed") === "1");
   applyOutlineCollapsed(localStorage.getItem("cuadernillo.outlineCollapsed") === "1");
