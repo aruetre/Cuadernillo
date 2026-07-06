@@ -23,7 +23,7 @@ import { indent } from "@milkdown/kit/plugin/indent";
 import { cursor } from "@milkdown/kit/plugin/cursor";
 import { listener, listenerCtx } from "@milkdown/kit/plugin/listener";
 import { replaceAll, callCommand, getMarkdown, insert, $prose } from "@milkdown/kit/utils";
-import { Plugin, PluginKey, NodeSelection } from "@milkdown/kit/prose/state";
+import { Plugin, PluginKey, NodeSelection, TextSelection } from "@milkdown/kit/prose/state";
 import { Decoration, DecorationSet } from "@milkdown/kit/prose/view";
 import { codeBlockComponent, codeBlockConfig } from "@milkdown/kit/component/code-block";
 import { languages } from "@codemirror/language-data";
@@ -352,12 +352,51 @@ export function focusEditor(): void {
   pm?.focus();
 }
 
-/** Inserta texto markdown en la posición del cursor (imágenes, plantillas…). */
-export function insertMarkdown(md: string): void {
+/** Inserta texto markdown en la posición del cursor. Si `block`, deja el cursor
+ *  en una línea nueva debajo (para no quedar atrapado dentro del elemento). */
+export function insertMarkdown(md: string, block = false): void {
   if (!editor) return;
   editor.action(insert(md));
+  if (block) moveToNewLineAfter();
   scheduleResolveImages();
   focusEditor();
+}
+
+// Crea un párrafo vacío tras el bloque superior actual y coloca ahí el cursor
+// (equivale a "Enter" al terminar de insertar un elemento).
+function moveToNewLineAfter(): void {
+  if (!editor) return;
+  editor.action((ctx) => {
+    try {
+      const view = ctx.get(editorViewCtx);
+      const { state, dispatch } = view;
+      const $to = state.selection.$to;
+      const pos = $to.depth === 0 ? $to.pos : $to.after(1);
+      const para = state.schema.nodes.paragraph?.createAndFill();
+      if (!para) return;
+      const tr = state.tr.insert(pos, para);
+      tr.setSelection(TextSelection.create(tr.doc, pos + 1));
+      dispatch(tr.scrollIntoView());
+    } catch { /* posición no válida: se ignora */ }
+  });
+}
+
+// Tras aplicar una marca a una selección (p. ej. negrita a una palabra), coloca
+// el cursor al final y limpia las marcas activas, para que lo siguiente que se
+// escriba salga sin formato (no queda "atrapado" dentro de la marca).
+function collapseSelectionEnd(): void {
+  if (!editor) return;
+  editor.action((ctx) => {
+    try {
+      const view = ctx.get(editorViewCtx);
+      const { state, dispatch } = view;
+      const sel = state.selection;
+      if (sel.empty) return;
+      const tr = state.tr.setSelection(TextSelection.create(state.doc, sel.to));
+      tr.setStoredMarks([]);
+      dispatch(tr);
+    } catch { /* se ignora */ }
+  });
 }
 
 /**
@@ -399,16 +438,18 @@ function run(key: unknown, payload?: unknown): void {
 }
 
 export const format = {
-  bold: () => run(toggleStrongCommand.key),
-  italic: () => run(toggleEmphasisCommand.key),
-  strike: () => run(toggleStrikethroughCommand.key),
-  inlineCode: () => run(toggleInlineCodeCommand.key),
+  // Marcas: tras aplicarlas a una palabra, el cursor sale al final sin marca.
+  bold: () => { run(toggleStrongCommand.key); collapseSelectionEnd(); },
+  italic: () => { run(toggleEmphasisCommand.key); collapseSelectionEnd(); },
+  strike: () => { run(toggleStrikethroughCommand.key); collapseSelectionEnd(); },
+  inlineCode: () => { run(toggleInlineCodeCommand.key); collapseSelectionEnd(); },
   heading: (level: number) => run(wrapInHeadingCommand.key, level),
   paragraph: () => run(turnIntoTextCommand.key),
   bulletList: () => run(wrapInBulletListCommand.key),
   orderedList: () => run(wrapInOrderedListCommand.key),
   blockquote: () => run(wrapInBlockquoteCommand.key),
-  codeBlock: () => run(createCodeBlockCommand.key),
-  hr: () => run(insertHrCommand.key),
-  table: () => run(insertTableCommand.key),
+  // Elementos de bloque: tras insertarlos, el cursor salta a una línea nueva.
+  codeBlock: () => { run(createCodeBlockCommand.key); moveToNewLineAfter(); },
+  hr: () => { run(insertHrCommand.key); moveToNewLineAfter(); },
+  table: () => { run(insertTableCommand.key); moveToNewLineAfter(); },
 };

@@ -316,7 +316,7 @@ async function insertImage(): Promise<void> {
     const rel = await invoke<string | null>("import_attachment", { page: currentPage });
     if (!rel) return;
     const alt = rel.split("/").pop()?.replace(/\.[^.]+$/, "") ?? "imagen";
-    insertMarkdown(`![${alt}](${rel})`);
+    insertMarkdown(`![${alt}](${rel})`, true);
   } catch (err) {
     window.alert(String(err));
   }
@@ -328,7 +328,7 @@ function insertWikiLink(): void {
 }
 
 function insertAdmonition(type: string): void {
-  insertMarkdown(`> [!${type}]\n> \n`);
+  insertMarkdown(`> [!${type}]\n> \n`, true);
 }
 
 function pad(n: number): string { return String(n).padStart(2, "0"); }
