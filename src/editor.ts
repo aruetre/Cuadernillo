@@ -1,4 +1,4 @@
-import { Editor, rootCtx, defaultValueCtx } from "@milkdown/kit/core";
+import { Editor, rootCtx, defaultValueCtx, editorViewCtx } from "@milkdown/kit/core";
 import {
   commonmark,
   toggleStrongCommand,
@@ -23,7 +23,7 @@ import { indent } from "@milkdown/kit/plugin/indent";
 import { cursor } from "@milkdown/kit/plugin/cursor";
 import { listener, listenerCtx } from "@milkdown/kit/plugin/listener";
 import { replaceAll, callCommand, getMarkdown, insert, $prose } from "@milkdown/kit/utils";
-import { Plugin, PluginKey } from "@milkdown/kit/prose/state";
+import { Plugin, PluginKey, NodeSelection } from "@milkdown/kit/prose/state";
 import { Decoration, DecorationSet } from "@milkdown/kit/prose/view";
 import { codeBlockComponent, codeBlockConfig } from "@milkdown/kit/component/code-block";
 import { languages } from "@codemirror/language-data";
@@ -198,6 +198,13 @@ const imgFailed = new Set<string>();
 function resolveImages(): void {
   const imgs = document.querySelectorAll<HTMLImageElement>("#editor img");
   imgs.forEach((img) => {
+    // Alineación: se guarda en el título del markdown (![](url "center")).
+    const align = (img.getAttribute("title") ?? "").toLowerCase();
+    img.classList.remove("img-left", "img-center", "img-right");
+    if (align === "left" || align === "center" || align === "right") {
+      img.classList.add(`img-${align}`);
+    }
+
     const raw = img.getAttribute("src") ?? "";
     if (!raw || /^(data|https?|blob|asset|file):/i.test(raw)) return;
     const cached = imgCache.get(raw);
@@ -278,7 +285,7 @@ async function build(): Promise<void> {
       childList: true,
       subtree: true,
       attributes: true,
-      attributeFilter: ["src"],
+      attributeFilter: ["src", "title"],
     });
   }
 }
@@ -334,6 +341,34 @@ export function focusEditor(): void {
 export function insertMarkdown(md: string): void {
   if (!editor) return;
   editor.action(insert(md));
+  scheduleResolveImages();
+  focusEditor();
+}
+
+/**
+ * Alinea la imagen seleccionada (o la más cercana al cursor) guardando la
+ * alineación en el título del markdown: `![alt](url "center")`. "none" la quita.
+ */
+export function setImageAlign(align: "left" | "center" | "right" | "none"): void {
+  if (!editor) return;
+  editor.action((ctx) => {
+    const view = ctx.get(editorViewCtx);
+    const { state } = view;
+    const sel = state.selection;
+    let pos = -1;
+    let node: import("@milkdown/kit/prose/model").Node | null = null;
+    if (sel instanceof NodeSelection && sel.node.type.name === "image") {
+      pos = sel.from;
+      node = sel.node;
+    } else {
+      state.doc.nodesBetween(Math.max(0, sel.from - 1), sel.to + 1, (n, p) => {
+        if (pos < 0 && n.type.name === "image") { pos = p; node = n; }
+      });
+    }
+    if (pos < 0 || !node) return;
+    const title = align === "none" ? null : align;
+    view.dispatch(state.tr.setNodeMarkup(pos, undefined, { ...node.attrs, title }));
+  });
   scheduleResolveImages();
   focusEditor();
 }

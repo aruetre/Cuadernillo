@@ -1,6 +1,6 @@
 import "./fonts";
 import { invoke } from "@tauri-apps/api/core";
-import { createEditor, setContent, getContent, focusEditor, insertMarkdown, type NavLink } from "./editor";
+import { createEditor, setContent, getContent, focusEditor, insertMarkdown, setImageAlign, type NavLink } from "./editor";
 import { renderTree, expandPathTo, type PageNode } from "./tree";
 import { buildToolbar } from "./toolbar";
 import { icon } from "./icons";
@@ -28,6 +28,7 @@ const el = {
   btnToggleSidebar: document.getElementById("btn-toggle-sidebar") as HTMLButtonElement,
   btnToggleToolbar: document.getElementById("btn-toggle-toolbar") as HTMLButtonElement,
   btnView: document.getElementById("btn-view") as HTMLButtonElement,
+  btnCopyDoc: document.getElementById("btn-copy-doc") as HTMLButtonElement,
   btnTemplates: document.getElementById("btn-templates") as HTMLButtonElement,
   btnSettings: document.getElementById("btn-settings") as HTMLButtonElement,
   btnHelp: document.getElementById("btn-help") as HTMLButtonElement,
@@ -236,6 +237,71 @@ function insertAdmonition(type: string): void {
   insertMarkdown(`> [!${type}]\n> \n`);
 }
 
+function pad(n: number): string { return String(n).padStart(2, "0"); }
+
+function insertDate(): void {
+  const d = new Date();
+  insertMarkdown(`${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`);
+}
+
+function insertTime(): void {
+  const d = new Date();
+  insertMarkdown(`${pad(d.getHours())}:${pad(d.getMinutes())}`);
+}
+
+// --- Copiar todo el documento (fuente o con formato) -------------------------
+
+async function copyMarkdown(): Promise<void> {
+  try { await navigator.clipboard.writeText(getContent()); } catch (e) { console.error(e); }
+}
+
+async function copyFormatted(): Promise<void> {
+  const pm = document.querySelector("#editor .ProseMirror");
+  const html = pm?.innerHTML ?? "";
+  try {
+    await navigator.clipboard.write([
+      new ClipboardItem({
+        "text/html": new Blob([html], { type: "text/html" }),
+        "text/plain": new Blob([getContent()], { type: "text/plain" }),
+      }),
+    ]);
+  } catch {
+    await copyMarkdown();
+  }
+}
+
+function openCopyMenu(): void {
+  const prev = document.querySelector(".copy-menu");
+  if (prev) { prev.remove(); return; }
+  const menu = document.createElement("div");
+  menu.className = "copy-menu";
+  const items: [string, () => void][] = [
+    ["Copiar como Markdown", () => void copyMarkdown()],
+    ["Copiar con formato", () => void copyFormatted()],
+  ];
+  for (const [label, fn] of items) {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "copy-menu-item";
+    b.textContent = label;
+    b.addEventListener("click", () => { menu.remove(); fn(); });
+    menu.appendChild(b);
+  }
+  document.body.appendChild(menu);
+  const r = el.btnCopyDoc.getBoundingClientRect();
+  menu.style.left = `${Math.min(r.left, window.innerWidth - 220)}px`;
+  menu.style.top = `${r.bottom + 4}px`;
+  setTimeout(() => {
+    const close = (e: MouseEvent) => {
+      if (!menu.contains(e.target as Node) && e.target !== el.btnCopyDoc) {
+        menu.remove();
+        document.removeEventListener("mousedown", close, true);
+      }
+    };
+    document.addEventListener("mousedown", close, true);
+  }, 0);
+}
+
 // --- Gestión de páginas ------------------------------------------------------
 
 async function newPage(): Promise<void> {
@@ -296,6 +362,7 @@ function updatePageButtons(): void {
   el.btnRename.disabled = !hasPage;
   el.btnDelete.disabled = !hasPage;
   el.btnView.disabled = !hasPage;
+  el.btnCopyDoc.disabled = !hasPage;
   el.btnTemplates.disabled = !hasPage;
   el.btnSettings.disabled = notebookRoot === null;
 }
@@ -318,6 +385,7 @@ function setupHeaderIcons(): void {
   el.btnToggleSidebar.innerHTML = icon("sidebar");
   el.btnToggleToolbar.innerHTML = icon("toolbar");
   el.btnView.innerHTML = icon("markup");
+  el.btnCopyDoc.innerHTML = icon("copy");
   el.btnTemplates.innerHTML = icon("template");
   el.btnSettings.innerHTML = icon("settings");
   el.btnHelp.innerHTML = icon("help");
@@ -332,6 +400,9 @@ async function init(): Promise<void> {
     insertImage: () => void insertImage(),
     insertWikiLink,
     insertAdmonition,
+    alignImage: (a) => setImageAlign(a as "left" | "center" | "right" | "none"),
+    insertDate,
+    insertTime,
   });
 
   el.btnOpen.addEventListener("click", () => void openNotebook());
@@ -342,6 +413,7 @@ async function init(): Promise<void> {
   el.btnTemplates.addEventListener("click", () => openTemplates(pageTitle()));
   el.btnSettings.addEventListener("click", () => openSettings());
   el.btnView.addEventListener("click", () => toggleView());
+  el.btnCopyDoc.addEventListener("click", () => openCopyMenu());
   el.btnToggleToolbar.addEventListener("click", () =>
     applyToolbarHidden(!el.toolbar.classList.contains("hidden")));
   el.btnToggleSidebar.addEventListener("click", () =>
