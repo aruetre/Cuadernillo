@@ -7,6 +7,14 @@
   <link rel="stylesheet" href="/src/styles.css" />
 </head>
 <body>
+  <div id="titlebar" data-tauri-drag-region>
+    <span id="titlebar-title" data-tauri-drag-region>Cuadernillo</span>
+    <div id="titlebar-controls">
+      <button id="tb-min" class="tb-btn" title="Minimizar" aria-label="Minimizar"></button>
+      <button id="tb-max" class="tb-btn" title="Maximizar" aria-label="Maximizar"></button>
+      <button id="tb-close" class="tb-btn tb-close" title="Cerrar" aria-label="Cerrar"></button>
+    </div>
+  </div>
   <div id="app">
     <aside id="sidebar">
       <div id="sidebar-header">

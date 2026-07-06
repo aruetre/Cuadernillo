@@ -1,5 +1,6 @@
 import "./fonts";
 import { invoke } from "@tauri-apps/api/core";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { createEditor, setContent, getContent, focusEditor, insertMarkdown, setImageAlign, type NavLink } from "./editor";
 import { renderTree, expandPathTo, type PageNode } from "./tree";
 import { buildToolbar } from "./toolbar";
@@ -37,6 +38,9 @@ const el = {
   btnTemplates: document.getElementById("btn-templates") as HTMLButtonElement,
   btnSettings: document.getElementById("btn-settings") as HTMLButtonElement,
   btnHelp: document.getElementById("btn-help") as HTMLButtonElement,
+  tbMin: document.getElementById("tb-min") as HTMLButtonElement,
+  tbMax: document.getElementById("tb-max") as HTMLButtonElement,
+  tbClose: document.getElementById("tb-close") as HTMLButtonElement,
 };
 
 let notebookRoot: string | null = null;
@@ -480,8 +484,8 @@ function setupHeaderIcons(): void {
   el.btnNew.innerHTML = icon("plus");
   el.btnToggleSidebar.innerHTML = icon("sidebar");
   el.btnToggleToolbar.innerHTML = icon("toolbar");
-  el.btnToggleOutline.innerHTML = icon("outline");
-  el.btnOutlineClose.innerHTML = icon("close");
+  el.btnToggleOutline.innerHTML = icon("sidebar-right");
+  el.btnOutlineClose.innerHTML = icon("sidebar-right");
   el.btnView.innerHTML = icon("markup");
   el.btnCopyDoc.innerHTML = icon("copy");
   el.btnTemplates.innerHTML = icon("template");
@@ -491,7 +495,18 @@ function setupHeaderIcons(): void {
   el.btnDelete.innerHTML = icon("trash");
 }
 
+function setupTitlebar(): void {
+  el.tbMin.innerHTML = icon("minimize");
+  el.tbMax.innerHTML = icon("maximize");
+  el.tbClose.innerHTML = icon("close");
+  const win = getCurrentWindow();
+  el.tbMin.addEventListener("click", () => void win.minimize());
+  el.tbMax.addEventListener("click", () => void win.toggleMaximize());
+  el.tbClose.addEventListener("click", () => void win.close());
+}
+
 async function init(): Promise<void> {
+  setupTitlebar();
   await createEditor("#editor", scheduleSave, (link) => void navigate(link));
   setupHeaderIcons();
   buildToolbar(el.toolbar, {
