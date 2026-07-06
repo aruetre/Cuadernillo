@@ -25,6 +25,7 @@ const el = {
   pagePath: document.getElementById("page-path") as HTMLElement,
   saveStatus: document.getElementById("save-status") as HTMLElement,
   btnOpen: document.getElementById("btn-open-notebook") as HTMLButtonElement,
+  btnRecents: document.getElementById("btn-recents") as HTMLButtonElement,
   btnNew: document.getElementById("btn-new-page") as HTMLButtonElement,
   btnRename: document.getElementById("btn-rename") as HTMLButtonElement,
   btnDelete: document.getElementById("btn-delete") as HTMLButtonElement,
@@ -79,18 +80,80 @@ async function refreshTree(): Promise<void> {
   });
 }
 
-async function openNotebook(): Promise<void> {
-  const selected = await invoke<string | null>("open_notebook");
-  if (!selected) return;
-  notebookRoot = selected;
+async function activateNotebook(display: string): Promise<void> {
+  notebookRoot = display;
   currentPage = null;
   el.btnNew.disabled = false;
-  el.pagePath.textContent = selected;
+  el.pagePath.textContent = display;
   showWelcome();
   updatePageButtons();
   await loadSettings();
   await loadPageIcons();
   await refreshTree();
+}
+
+async function openNotebook(): Promise<void> {
+  await flushSave();
+  const selected = await invoke<string | null>("open_notebook");
+  if (selected) await activateNotebook(selected);
+}
+
+async function openRecentNotebook(path: string): Promise<void> {
+  await flushSave();
+  try {
+    const display = await invoke<string | null>("open_recent", { path });
+    if (display) await activateNotebook(display);
+  } catch (err) {
+    window.alert(String(err));
+  }
+}
+
+async function autoOpenLast(): Promise<void> {
+  try {
+    const recents = await invoke<string[]>("list_recent_notebooks");
+    if (recents.length > 0) await openRecentNotebook(recents[0]);
+  } catch { /* sin recientes */ }
+}
+
+// Menú del intercambiador rápido de cuadernos.
+async function openRecentsMenu(): Promise<void> {
+  const prev = document.querySelector(".copy-menu");
+  if (prev) { prev.remove(); return; }
+  let recents: string[] = [];
+  try { recents = await invoke<string[]>("list_recent_notebooks"); } catch { /* vacío */ }
+
+  const menu = document.createElement("div");
+  menu.className = "copy-menu recents-menu";
+  for (const path of recents) {
+    const name = path.split(/[\\/]/).pop() || path;
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "copy-menu-item";
+    b.title = path;
+    b.textContent = name + (path === notebookRoot ? "  ●" : "");
+    b.addEventListener("click", () => { menu.remove(); void openRecentNotebook(path); });
+    menu.appendChild(b);
+  }
+  const other = document.createElement("button");
+  other.type = "button";
+  other.className = "copy-menu-item recents-other";
+  other.textContent = "Abrir otro cuaderno…";
+  other.addEventListener("click", () => { menu.remove(); void openNotebook(); });
+  menu.appendChild(other);
+
+  document.body.appendChild(menu);
+  const r = el.btnRecents.getBoundingClientRect();
+  menu.style.left = `${r.left}px`;
+  menu.style.top = `${r.bottom + 4}px`;
+  setTimeout(() => {
+    const close = (e: MouseEvent) => {
+      if (!menu.contains(e.target as Node) && e.target !== el.btnRecents) {
+        menu.remove();
+        document.removeEventListener("mousedown", close, true);
+      }
+    };
+    document.addEventListener("mousedown", close, true);
+  }, 0);
 }
 
 async function openPage(relPath: string): Promise<void> {
@@ -412,6 +475,7 @@ function applyOutlineCollapsed(collapsed: boolean): void {
 
 function setupHeaderIcons(): void {
   el.btnOpen.insertAdjacentHTML("afterbegin", icon("open"));
+  el.btnRecents.innerHTML = icon("history");
   el.btnNew.innerHTML = icon("plus");
   el.btnToggleSidebar.innerHTML = icon("sidebar");
   el.btnToggleToolbar.innerHTML = icon("toolbar");
@@ -437,6 +501,7 @@ async function init(): Promise<void> {
   });
 
   el.btnOpen.addEventListener("click", () => void openNotebook());
+  el.btnRecents.addEventListener("click", () => void openRecentsMenu());
   el.btnNew.addEventListener("click", () => void newPage());
   el.btnRename.addEventListener("click", () => void renamePage());
   el.btnDelete.addEventListener("click", () => void deletePage());
@@ -473,6 +538,9 @@ async function init(): Promise<void> {
       void flushSave();
     }
   });
+
+  // Recordar el último cuaderno: reabre el más reciente al arrancar.
+  void autoOpenLast();
 }
 
 void init();

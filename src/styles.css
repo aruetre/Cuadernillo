@@ -876,6 +876,9 @@ button svg { pointer-events: none; }
   color: var(--fg-text);
 }
 .copy-menu-item:hover { background: var(--accent-soft); }
+.recents-menu { max-width: 320px; max-height: 60vh; overflow-y: auto; }
+.copy-menu-item { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.recents-other { border-top: 1px solid var(--border); margin-top: 4px; color: var(--accent); }
 
 /* ---------- Buscador de notas (vínculo [[…]]) ---------- */
 

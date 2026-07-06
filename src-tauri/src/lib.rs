@@ -2,7 +2,7 @@ use serde::Serialize;
 use std::fs;
 use std::path::{Component, Path, PathBuf};
 use std::sync::Mutex;
-use tauri::{AppHandle, State};
+use tauri::{AppHandle, Manager, State};
 use tauri_plugin_dialog::DialogExt;
 
 /// Raíz del cuaderno aprobada por el usuario, canonicalizada y custodiada por
@@ -191,6 +191,68 @@ async fn open_notebook(
         fs::canonicalize(&path).map_err(|e| format!("Cuaderno no accesible: {e}"))?;
     let display = canonical.to_string_lossy().to_string();
     *state.0.lock().unwrap() = Some(canonical);
+    push_recent(&app, &display);
+    Ok(Some(display))
+}
+
+// --- Cuadernos recientes (config de la app, no del cuaderno) ------------------
+// La lista permite el intercambiador rápido y recordar el último. Guardada en la
+// carpeta de config de la app. Por seguridad, `open_recent` solo acepta rutas
+// que ya estén en esta lista (es decir, abiertas antes por el diálogo nativo).
+
+fn recents_file(app: &AppHandle) -> Result<PathBuf, String> {
+    let dir = app.path().app_config_dir().map_err(|e| e.to_string())?;
+    fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    Ok(dir.join("recent_notebooks.json"))
+}
+
+fn read_recents(app: &AppHandle) -> Vec<String> {
+    recents_file(app)
+        .ok()
+        .and_then(|p| fs::read_to_string(p).ok())
+        .and_then(|s| serde_json::from_str::<Vec<String>>(&s).ok())
+        .unwrap_or_default()
+}
+
+fn write_recents(app: &AppHandle, list: &[String]) {
+    if let Ok(p) = recents_file(app) {
+        if let Ok(s) = serde_json::to_string_pretty(list) {
+            let _ = fs::write(p, s);
+        }
+    }
+}
+
+fn push_recent(app: &AppHandle, path: &str) {
+    let mut list = read_recents(app);
+    list.retain(|p| p != path);
+    list.insert(0, path.to_string());
+    list.truncate(12);
+    write_recents(app, &list);
+}
+
+#[tauri::command]
+fn list_recent_notebooks(app: AppHandle) -> Vec<String> {
+    read_recents(&app)
+        .into_iter()
+        .filter(|p| Path::new(p).is_dir())
+        .collect()
+}
+
+#[tauri::command]
+fn open_recent(
+    app: AppHandle,
+    state: State<'_, NotebookState>,
+    path: String,
+) -> Result<Option<String>, String> {
+    // Solo se aceptan rutas ya conocidas (abiertas antes por el diálogo).
+    if !read_recents(&app).iter().any(|p| p == &path) {
+        return Err("Cuaderno no reconocido".into());
+    }
+    let canonical =
+        fs::canonicalize(&path).map_err(|e| format!("Cuaderno no accesible: {e}"))?;
+    let display = canonical.to_string_lossy().to_string();
+    *state.0.lock().unwrap() = Some(canonical);
+    push_recent(&app, &display);
     Ok(Some(display))
 }
 
@@ -493,7 +555,9 @@ pub fn run() {
             read_page_icons,
             write_page_icons,
             import_attachment,
-            read_attachment
+            read_attachment,
+            list_recent_notebooks,
+            open_recent
         ])
         .run(tauri::generate_context!())
         .expect("error al arrancar Cuadernillo");
