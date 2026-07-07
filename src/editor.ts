@@ -448,8 +448,9 @@ export const format = {
   bulletList: () => run(wrapInBulletListCommand.key),
   orderedList: () => run(wrapInOrderedListCommand.key),
   blockquote: () => run(wrapInBlockquoteCommand.key),
-  // Elementos de bloque: tras insertarlos, el cursor salta a una línea nueva.
-  codeBlock: () => { run(createCodeBlockCommand.key); moveToNewLineAfter(); },
+  // Con contenido interno: el cursor se queda dentro (se sale con ↓).
+  codeBlock: () => run(createCodeBlockCommand.key),
+  table: () => run(insertTableCommand.key),
+  // Sin contenido interno: el cursor salta a una línea nueva debajo.
   hr: () => { run(insertHrCommand.key); moveToNewLineAfter(); },
-  table: () => { run(insertTableCommand.key); moveToNewLineAfter(); },
 };

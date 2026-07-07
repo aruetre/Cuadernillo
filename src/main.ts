@@ -328,7 +328,8 @@ function insertWikiLink(): void {
 }
 
 function insertAdmonition(type: string): void {
-  insertMarkdown(`> [!${type}]\n> \n`, true);
+  // Deja el cursor dentro del aviso para escribir el contenido (se sale con ↓).
+  insertMarkdown(`> [!${type}]\n> \n`);
 }
 
 function pad(n: number): string { return String(n).padStart(2, "0"); }
