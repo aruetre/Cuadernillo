@@ -9,6 +9,7 @@ import { openHelp } from "./help";
 import { openTemplates } from "./templates";
 import { openSettings, loadSettings, resetSettings } from "./settings";
 import { openNotePicker } from "./picker";
+import { openAi } from "./ai";
 import { loadPageIcons, resetPageIcons, getPageIcon, setPageIcon, openIconPicker } from "./pageIcons";
 import { renderOutline } from "./outline";
 
@@ -39,6 +40,7 @@ const el = {
   btnSettings: document.getElementById("btn-settings") as HTMLButtonElement,
   btnHelp: document.getElementById("btn-help") as HTMLButtonElement,
   btnTheme: document.getElementById("btn-theme") as HTMLButtonElement,
+  btnAi: document.getElementById("btn-ai") as HTMLButtonElement,
   tbMin: document.getElementById("tb-min") as HTMLButtonElement,
   tbMax: document.getElementById("tb-max") as HTMLButtonElement,
   tbClose: document.getElementById("tb-close") as HTMLButtonElement,
@@ -397,6 +399,20 @@ function openCopyMenu(): void {
   }, 0);
 }
 
+// --- IA ----------------------------------------------------------------------
+
+async function aiCreateDoc(title: string, markdown: string): Promise<void> {
+  if (!notebookRoot) { window.alert("Abre un cuaderno primero para crear el documento."); return; }
+  try {
+    const rel = await invoke<string>("create_page", { name: title });
+    await invoke("write_page", { relPath: rel, content: markdown });
+    await refreshTree();
+    await openPage(rel);
+  } catch (err) {
+    window.alert(String(err));
+  }
+}
+
 // --- Gestión de páginas ------------------------------------------------------
 
 async function newPage(): Promise<void> {
@@ -504,6 +520,7 @@ function setupHeaderIcons(): void {
   el.btnCopyDoc.innerHTML = icon("copy");
   el.btnTemplates.innerHTML = icon("template");
   el.btnSettings.innerHTML = icon("settings");
+  el.btnAi.innerHTML = icon("ai");
   el.btnHelp.innerHTML = icon("help");
   el.btnRename.innerHTML = icon("pencil");
   el.btnDelete.innerHTML = icon("trash");
@@ -539,6 +556,12 @@ async function init(): Promise<void> {
   el.btnDelete.addEventListener("click", () => void deletePage());
   el.btnHelp.addEventListener("click", () => openHelp());
   el.btnTheme.addEventListener("click", () => toggleTheme());
+  el.btnAi.addEventListener("click", () => openAi({
+    getMarkdown: () => getContent(),
+    hasPage: () => currentPage !== null,
+    onCreateDoc: aiCreateDoc,
+    onInsert: (md) => insertMarkdown(md),
+  }));
   el.btnTemplates.addEventListener("click", () => openTemplates(pageTitle()));
   el.btnSettings.addEventListener("click", () => openSettings());
   el.btnView.addEventListener("click", () => toggleView());

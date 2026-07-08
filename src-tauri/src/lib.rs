@@ -535,6 +535,104 @@ fn read_attachment(state: State<'_, NotebookState>, rel: String) -> Result<Strin
     Ok(format!("data:{mime};base64,{b64}"))
 }
 
+// --- IA (API compatible OpenAI; por defecto NVIDIA gratuita) -----------------
+// Config global de la app (no del cuaderno): API key, modelo y endpoint.
+
+#[derive(serde::Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+struct AiConfig {
+    #[serde(default)]
+    api_key: String,
+    #[serde(default)]
+    model: String,
+    #[serde(default)]
+    base_url: String,
+}
+
+fn ai_config_file(app: &AppHandle) -> Result<PathBuf, String> {
+    let dir = app.path().app_config_dir().map_err(|e| e.to_string())?;
+    fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    Ok(dir.join("ai_config.json"))
+}
+
+fn load_ai_config(app: &AppHandle) -> AiConfig {
+    ai_config_file(app)
+        .ok()
+        .and_then(|p| fs::read_to_string(p).ok())
+        .and_then(|s| serde_json::from_str::<AiConfig>(&s).ok())
+        .unwrap_or_default()
+}
+
+#[tauri::command]
+fn read_ai_config(app: AppHandle) -> Result<String, String> {
+    match ai_config_file(&app).and_then(|p| fs::read_to_string(p).map_err(|e| e.to_string())) {
+        Ok(s) => Ok(s),
+        Err(_) => Ok(String::new()),
+    }
+}
+
+#[tauri::command]
+fn write_ai_config(app: AppHandle, content: String) -> Result<(), String> {
+    let path = ai_config_file(&app)?;
+    fs::write(path, content).map_err(|e| format!("No se pudo guardar la config de IA: {e}"))
+}
+
+/// Llama a la API (chat/completions compatible OpenAI) y devuelve el texto.
+#[tauri::command]
+async fn ai_complete(app: AppHandle, system: String, prompt: String) -> Result<String, String> {
+    let cfg = load_ai_config(&app);
+    if cfg.api_key.trim().is_empty() {
+        return Err("Falta la API key de IA. Configúrala en el panel de IA.".into());
+    }
+    let base = if cfg.base_url.trim().is_empty() {
+        "https://integrate.api.nvidia.com/v1".to_string()
+    } else {
+        cfg.base_url.trim().trim_end_matches('/').to_string()
+    };
+    let model = if cfg.model.trim().is_empty() {
+        "meta/llama-3.3-70b-instruct".to_string()
+    } else {
+        cfg.model.trim().to_string()
+    };
+    let url = format!("{base}/chat/completions");
+    let body = serde_json::json!({
+        "model": model,
+        "messages": [
+            { "role": "system", "content": system },
+            { "role": "user", "content": prompt }
+        ],
+        "temperature": 0.6,
+        "max_tokens": 2048,
+        "stream": false
+    });
+
+    let client = reqwest::Client::new();
+    let resp = client
+        .post(&url)
+        .header("Authorization", format!("Bearer {}", cfg.api_key.trim()))
+        .header("Accept", "application/json")
+        .json(&body)
+        .send()
+        .await
+        .map_err(|e| format!("Error de red al llamar a la IA: {e}"))?;
+
+    let status = resp.status();
+    let text = resp.text().await.map_err(|e| e.to_string())?;
+    if !status.is_success() {
+        return Err(format!("La IA respondió {status}: {text}"));
+    }
+    let v: serde_json::Value =
+        serde_json::from_str(&text).map_err(|e| format!("Respuesta no válida: {e}"))?;
+    let content = v["choices"][0]["message"]["content"]
+        .as_str()
+        .unwrap_or("")
+        .to_string();
+    if content.trim().is_empty() {
+        return Err("La IA devolvió una respuesta vacía.".into());
+    }
+    Ok(content)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -557,7 +655,10 @@ pub fn run() {
             import_attachment,
             read_attachment,
             list_recent_notebooks,
-            open_recent
+            open_recent,
+            read_ai_config,
+            write_ai_config,
+            ai_complete
         ])
         .run(tauri::generate_context!())
         .expect("error al arrancar Cuadernillo");

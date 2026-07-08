@@ -1045,6 +1045,40 @@ button svg { pointer-events: none; }
 }
 .settings-file { font-size: 13px; }
 
+/* ---------- Panel de IA ---------- */
+
+.ai-modal { width: min(640px, 94vw); }
+.ai-body { display: flex; flex-direction: column; }
+.ai-section-title {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--fg-muted);
+  margin: 16px 0 6px;
+}
+.ai-section { display: flex; flex-direction: column; gap: 10px; }
+.ai-btn {
+  align-self: flex-start;
+  padding: 8px 14px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg-paper);
+  color: var(--fg-text);
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+}
+.ai-btn:hover { background: var(--accent-soft); }
+.ai-btn-primary { background: #1f4e8c; color: #fff; border-color: #1f4e8c; }
+.ai-btn-primary:hover { filter: brightness(1.1); background: #1f4e8c; }
+.ai-btn:disabled { opacity: 0.5; cursor: default; }
+.ai-result { min-height: 140px; }
+.ai-result-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.ai-status { font-size: 12.5px; padding: 8px 2px 2px; min-height: 18px; }
+.ai-status[data-state="busy"] { color: var(--accent); }
+.ai-status[data-state="error"] { color: var(--danger); white-space: pre-wrap; }
+.ai-status[data-state="ok"] { color: #2e7d46; }
+
 /* ---------- Desplegable de la barra (admonitions) ---------- */
 
 .tbtn-dropdown { position: relative; display: inline-flex; }
