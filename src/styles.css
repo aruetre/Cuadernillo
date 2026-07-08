@@ -1079,6 +1079,21 @@ button svg { pointer-events: none; }
 .ai-status[data-state="error"] { color: var(--danger); white-space: pre-wrap; }
 .ai-status[data-state="ok"] { color: #2e7d46; }
 
+.ai-intro {
+  background: var(--accent-soft);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 13px;
+  color: var(--fg-text);
+  line-height: 1.5;
+}
+.ai-intro p { margin: 4px 0; }
+.ai-intro ol { margin: 6px 0 6px 18px; padding: 0; }
+.ai-intro li { margin: 3px 0; }
+.ai-intro code { font-family: var(--mono); font-size: 0.9em; background: var(--code-inline-bg); padding: 0 4px; border-radius: 3px; }
+.ai-intro-note { color: var(--fg-muted); font-size: 12px; }
+
 /* ---------- Desplegable de la barra (admonitions) ---------- */
 
 .tbtn-dropdown { position: relative; display: inline-flex; }

@@ -51,6 +51,20 @@ export function openAi(handlers: AiHandlers): void {
   body.className = "modal-body ai-body";
   dialog.appendChild(body);
 
+  // Ayuda: qué hace y cómo empezar.
+  const intro = document.createElement("div");
+  intro.className = "ai-intro";
+  intro.innerHTML =
+    "<p><strong>Genera</strong> documentos nuevos y <strong>analiza</strong> el que tengas abierto usando IA.</p>" +
+    "<ol>" +
+    "<li>Consigue una API key gratis en <strong>build.nvidia.com</strong> (empieza por <code>nvapi-</code>).</li>" +
+    "<li>Pégala abajo en <strong>Configuración</strong> y pulsa Guardar.</li>" +
+    "<li><strong>Generar</strong>: título + instrucción → crea una nota nueva. " +
+    "<strong>Analizar</strong>: resumen, correcciones, ideas o tareas del documento actual.</li>" +
+    "</ol>" +
+    "<p class=\"ai-intro-note\">Privacidad: el texto que envíes va al proveedor de la API. La clave se guarda solo en tu equipo.</p>";
+  body.appendChild(intro);
+
   // Estado / errores.
   const status = document.createElement("div");
   status.className = "ai-status";

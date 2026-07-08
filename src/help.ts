@@ -57,6 +57,14 @@ const SECTIONS: Section[] = [
       { syntax: "> [!CAUTION]", result: "precaución" },
     ],
   },
+  {
+    title: "Asistente de IA (botón ✨ de la cabecera)",
+    rows: [
+      { syntax: "Configuración", result: "API key gratis de build.nvidia.com (nvapi-…)" },
+      { syntax: "Generar", result: "título + instrucción → crea una nota nueva con IA" },
+      { syntax: "Analizar", result: "resumen, correcciones, ideas o tareas del documento actual" },
+    ],
+  },
 ];
 
 let overlay: HTMLElement | null = null;

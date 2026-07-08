@@ -136,6 +136,48 @@ lanzarlo a mano desde *Actions → Release → Run workflow*.
 - Autoguardado con debounce de 800 ms, guardado al perder foco y con Ctrl+S. Escritura atómica (temporal + rename).
 - Crear, renombrar y eliminar páginas. Renombrar mueve también la carpeta de subpáginas. Eliminar conserva las subpáginas.
 - Validación de rutas en el backend Rust: sin `..`, sin rutas absolutas, sin caracteres conflictivos. Nada sale de la carpeta del cuaderno.
+- Asistente de IA opcional (ver abajo).
+
+## Asistente de IA
+
+Cuadernillo puede conectarse a una IA para **generar** documentos y **analizar**
+el que tengas abierto. Usa cualquier API **compatible con OpenAI**; por defecto
+está preparado para la **API gratuita de NVIDIA**.
+
+### Conseguir una API key gratis (NVIDIA)
+
+1. Entra en **[build.nvidia.com](https://build.nvidia.com)** e inicia sesión (gratis).
+2. Elige un modelo (p. ej. *Llama 3.3 70B Instruct*) y pulsa **«Get API Key»**.
+3. Copia la clave, que empieza por `nvapi-…`.
+
+### Configurar
+
+Abre el panel de IA con el botón de **chispas (✨)** de la cabecera → sección
+**Configuración**:
+
+- **API key**: pega tu `nvapi-…`.
+- **Modelo**: por defecto `meta/llama-3.3-70b-instruct` (puedes poner cualquiera del catálogo).
+- **Endpoint**: `https://integrate.api.nvidia.com/v1` (déjalo salvo que uses otro proveedor).
+
+La configuración se guarda **en tu equipo** (carpeta de config de la app), no en
+el cuaderno, así que no viaja al compartir/sincronizar.
+
+### Uso
+
+- **Generar documento**: escribe un título y una instrucción → la IA redacta el
+  contenido y **crea una página `.md` nueva** con él.
+- **Analizar documento**: envía el documento abierto y elige el análisis
+  (resumen, revisión y correcciones, ideas para ampliar, extraer tareas). El
+  resultado puedes **insertarlo** o **guardarlo como nota nueva**.
+
+### Otros proveedores
+
+Al ser compatible con OpenAI, funciona cambiando **Endpoint** + **Modelo** (y la
+key): OpenAI (`https://api.openai.com/v1`), o un modelo **local** con Ollama
+(`http://localhost:11434/v1`, sin coste ni envío de datos fuera del equipo).
+
+> **Privacidad**: con una API en la nube, el texto que envíes (instrucción o
+> documento) se manda a ese proveedor. Con Ollama local, no sale de tu equipo.
 
 ## Arquitectura
 
