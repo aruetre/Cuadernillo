@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Cuadernillo",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "identifier": "es.antoniorueda.cuadernillo",
   "build": {
     "beforeDevCommand": "npm run dev",
@@ -27,12 +27,20 @@
   "bundle": {
     "active": true,
     "targets": "all",
+    "publisher": "Antonio Rueda",
+    "copyright": "Copyright (C) 2026 Antonio Rueda. GPL-3.0-only.",
+    "category": "Productivity",
+    "shortDescription": "Editor markdown WYSIWYG tipo cuaderno Zim",
+    "longDescription": "Cuadernillo es un editor markdown WYSIWYG de escritorio con estructura de cuaderno jerárquico tipo Zim Wiki. Cada página es un fichero .md en texto plano; sin base de datos ni formato propietario.",
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
-    ]
+    ],
+    "linux": {
+      "deb": { "section": "editors" }
+    }
   }
 }

@@ -1,6 +1,6 @@
 [package]
 name = "cuadernillo"
-version = "0.2.0"
+version = "0.3.0"
 description = "Editor markdown WYSIWYG con estructura de cuaderno tipo Zim"
 authors = ["Antonio Rueda"]
 edition = "2021"

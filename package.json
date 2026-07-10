@@ -1,7 +1,7 @@
 {
   "name": "cuadernillo",
   "private": true,
-  "version": "0.2.0",
+  "version": "0.3.0",
   "license": "GPL-3.0-only",
   "author": "Antonio Rueda (https://antoniorueda.es)",
   "type": "module",
