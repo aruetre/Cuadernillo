@@ -1,9 +1,31 @@
+use notify::{RecommendedWatcher, RecursiveMode, Watcher};
 use serde::Serialize;
 use std::fs;
 use std::path::{Component, Path, PathBuf};
 use std::sync::Mutex;
-use tauri::{AppHandle, Manager, State};
+use tauri::{AppHandle, Emitter, Manager, State};
 use tauri_plugin_dialog::DialogExt;
+
+/// Vigilante de cambios en el sistema de ficheros del cuaderno. Guardado en el
+/// estado para mantenerlo vivo; se reemplaza al abrir otro cuaderno.
+#[derive(Default)]
+struct WatcherState(Mutex<Option<RecommendedWatcher>>);
+
+/// Empieza a vigilar `root` recursivamente. Al detectar cambios, emite el evento
+/// `notebook-changed` al frontend (que recarga el árbol, con antirrebote).
+fn start_watching(app: &AppHandle, root: &Path, ws: &WatcherState) {
+    let app2 = app.clone();
+    let watcher = notify::recommended_watcher(move |res: notify::Result<notify::Event>| {
+        if res.is_ok() {
+            let _ = app2.emit("notebook-changed", ());
+        }
+    });
+    if let Ok(mut w) = watcher {
+        if w.watch(root, RecursiveMode::Recursive).is_ok() {
+            *ws.0.lock().unwrap() = Some(w);
+        }
+    }
+}
 
 /// Raíz del cuaderno aprobada por el usuario, canonicalizada y custodiada por
 /// el backend. El frontend NUNCA la aporta: solo puede fijarse abriendo el
@@ -251,6 +273,7 @@ fn search_notebook(state: State<'_, NotebookState>, query: String) -> Result<Vec
 async fn open_notebook(
     app: AppHandle,
     state: State<'_, NotebookState>,
+    ws: State<'_, WatcherState>,
 ) -> Result<Option<String>, String> {
     // Comando async → se ejecuta fuera del hilo principal, por lo que el
     // diálogo bloqueante no puede provocar deadlock del webview.
@@ -261,6 +284,7 @@ async fn open_notebook(
     let canonical =
         fs::canonicalize(&path).map_err(|e| format!("Cuaderno no accesible: {e}"))?;
     let display = canonical.to_string_lossy().to_string();
+    start_watching(&app, &canonical, &ws);
     *state.0.lock().unwrap() = Some(canonical);
     push_recent(&app, &display);
     Ok(Some(display))
@@ -313,6 +337,7 @@ fn list_recent_notebooks(app: AppHandle) -> Vec<String> {
 fn open_recent(
     app: AppHandle,
     state: State<'_, NotebookState>,
+    ws: State<'_, WatcherState>,
     path: String,
 ) -> Result<Option<String>, String> {
     // Solo se aceptan rutas ya conocidas (abiertas antes por el diálogo).
@@ -322,6 +347,7 @@ fn open_recent(
     let canonical =
         fs::canonicalize(&path).map_err(|e| format!("Cuaderno no accesible: {e}"))?;
     let display = canonical.to_string_lossy().to_string();
+    start_watching(&app, &canonical, &ws);
     *state.0.lock().unwrap() = Some(canonical);
     push_recent(&app, &display);
     Ok(Some(display))
@@ -709,6 +735,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .manage(NotebookState::default())
+        .manage(WatcherState::default())
         .invoke_handler(tauri::generate_handler![
             open_notebook,
             list_pages,

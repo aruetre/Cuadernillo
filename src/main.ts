@@ -1,6 +1,7 @@
 import "./fonts";
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { listen } from "@tauri-apps/api/event";
 import { createEditor, setContent, getContent, focusEditor, insertMarkdown, setImageAlign, type NavLink } from "./editor";
 import { renderTree, expandPathTo, type PageNode } from "./tree";
 import { buildToolbar } from "./toolbar";
@@ -53,6 +54,8 @@ let notebookRoot: string | null = null;
 let currentPage: string | null = null;
 let saveTimer: number | undefined;
 let outlineTimer: number | undefined;
+let watchTimer: number | undefined;
+let lastWriteAt = 0;
 let pendingMarkdown: string | null = null;
 let sourceMode = false;
 // Lista plana de páginas (rel_path + nombre) para resolver vínculos.
@@ -221,13 +224,24 @@ async function flushSave(): Promise<void> {
   const md = pendingMarkdown;
   pendingMarkdown = null;
   window.clearTimeout(saveTimer);
+  lastWriteAt = Date.now();
   try {
     await invoke("write_page", { relPath: currentPage, content: md });
+    lastWriteAt = Date.now();
     setSaveState("saved");
   } catch (err) {
     console.error("Error guardando:", err);
     setSaveState("error");
   }
+}
+
+// Cambios externos en el cuaderno (git, Syncthing, otro editor) → recarga el
+// árbol. Antirrebote + se ignora justo tras un guardado propio (no eran nuestros).
+function onExternalChange(): void {
+  if (!notebookRoot) return;
+  if (Date.now() - lastWriteAt < 2500) return;
+  window.clearTimeout(watchTimer);
+  watchTimer = window.setTimeout(() => void refreshTree(), 700);
 }
 
 // --- Navegación por vínculos ([[wiki]] y enlaces markdown internos) ----------
@@ -622,6 +636,9 @@ async function init(): Promise<void> {
   applyOutlineCollapsed(localStorage.getItem("cuadernillo.outlineCollapsed") === "1");
   resetSettings();
   resetPageIcons();
+
+  // Vigilancia de cambios externos en el cuaderno.
+  void listen("notebook-changed", () => onExternalChange());
 
   window.addEventListener("blur", () => void flushSave());
   window.addEventListener("beforeunload", () => void flushSave());
