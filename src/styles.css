@@ -1217,3 +1217,15 @@ button svg { pointer-events: none; }
 .picker-item.create .picker-primary { color: var(--accent); font-weight: 600; }
 .picker-secondary { font-size: 12px; color: var(--fg-muted); font-family: var(--mono); }
 .picker-empty { padding: 16px; color: var(--fg-muted); text-align: center; }
+
+/* Búsqueda de texto y paleta de comandos */
+.search-line { color: var(--fg-muted); font-weight: 400; font-size: 0.85em; }
+.search-snippet { font-family: var(--sans); white-space: normal; }
+.picker-secondary mark, .search-snippet mark {
+  background: #fde68a;
+  color: #1e2126;
+  border-radius: 2px;
+  padding: 0 1px;
+}
+:root[data-theme="dark"] .picker-secondary mark { background: #8a6d00; color: #fff; }
+.palette-kind { display: inline-block; width: 16px; text-align: center; opacity: 0.75; }

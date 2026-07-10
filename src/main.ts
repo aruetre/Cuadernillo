@@ -10,6 +10,8 @@ import { openTemplates } from "./templates";
 import { openSettings, loadSettings, resetSettings } from "./settings";
 import { openNotePicker } from "./picker";
 import { openAi } from "./ai";
+import { openSearch } from "./search";
+import { openPalette, type PaletteCommand } from "./palette";
 import { loadPageIcons, resetPageIcons, getPageIcon, setPageIcon, openIconPicker } from "./pageIcons";
 import { renderOutline } from "./outline";
 
@@ -33,6 +35,7 @@ const el = {
   btnRename: document.getElementById("btn-rename") as HTMLButtonElement,
   btnDelete: document.getElementById("btn-delete") as HTMLButtonElement,
   btnToggleSidebar: document.getElementById("btn-toggle-sidebar") as HTMLButtonElement,
+  btnSearch: document.getElementById("btn-search") as HTMLButtonElement,
   btnToggleToolbar: document.getElementById("btn-toggle-toolbar") as HTMLButtonElement,
   btnView: document.getElementById("btn-view") as HTMLButtonElement,
   btnCopyDoc: document.getElementById("btn-copy-doc") as HTMLButtonElement,
@@ -413,6 +416,44 @@ async function aiCreateDoc(title: string, markdown: string): Promise<void> {
   }
 }
 
+function openAiPanel(): void {
+  openAi({
+    getMarkdown: () => getContent(),
+    hasPage: () => currentPage !== null,
+    onCreateDoc: aiCreateDoc,
+    onInsert: (md) => insertMarkdown(md),
+  });
+}
+
+// --- Búsqueda y paleta de comandos -------------------------------------------
+
+function doSearch(): void {
+  if (!notebookRoot) { window.alert("Abre un cuaderno para buscar."); return; }
+  openSearch((rel) => void openPage(rel));
+}
+
+function doPalette(): void {
+  const commands: PaletteCommand[] = [
+    { label: "Buscar texto en el cuaderno", hint: "Ctrl+Mayús+F", run: doSearch },
+    { label: "Nueva página", run: () => void newPage() },
+    { label: "Abrir cuaderno", run: () => void openNotebook() },
+    { label: "Cambiar de cuaderno (recientes)", run: () => void openRecentsMenu() },
+    { label: "Ajustes del cuaderno", run: () => openSettings() },
+    { label: "Asistente de IA", run: openAiPanel },
+    { label: "Plantillas", run: () => openTemplates(pageTitle()) },
+    { label: "Insertar imagen", run: () => void insertImage() },
+    { label: "Copiar documento", run: () => openCopyMenu() },
+    { label: "Insertar fecha", run: insertDate },
+    { label: "Insertar hora", run: insertTime },
+    { label: "Cambiar tema claro/oscuro", run: toggleTheme },
+    { label: "Mostrar/ocultar índice", run: () => applyOutlineCollapsed(!el.app.classList.contains("outline-collapsed")) },
+    { label: "Ayuda de markdown", run: () => openHelp() },
+    { label: "Renombrar página", run: () => void renamePage() },
+    { label: "Eliminar página", run: () => void deletePage() },
+  ];
+  openPalette(pages, commands, (rel) => void openPage(rel));
+}
+
 // --- Gestión de páginas ------------------------------------------------------
 
 async function newPage(): Promise<void> {
@@ -512,6 +553,7 @@ function setupHeaderIcons(): void {
   el.btnOpen.insertAdjacentHTML("afterbegin", icon("open"));
   el.btnRecents.innerHTML = icon("history");
   el.btnNew.innerHTML = icon("plus");
+  el.btnSearch.innerHTML = icon("search");
   el.btnToggleSidebar.innerHTML = icon("sidebar");
   el.btnToggleToolbar.innerHTML = icon("toolbar");
   el.btnToggleOutline.innerHTML = icon("sidebar-right");
@@ -556,12 +598,8 @@ async function init(): Promise<void> {
   el.btnDelete.addEventListener("click", () => void deletePage());
   el.btnHelp.addEventListener("click", () => openHelp());
   el.btnTheme.addEventListener("click", () => toggleTheme());
-  el.btnAi.addEventListener("click", () => openAi({
-    getMarkdown: () => getContent(),
-    hasPage: () => currentPage !== null,
-    onCreateDoc: aiCreateDoc,
-    onInsert: (md) => insertMarkdown(md),
-  }));
+  el.btnAi.addEventListener("click", () => openAiPanel());
+  el.btnSearch.addEventListener("click", () => doSearch());
   el.btnTemplates.addEventListener("click", () => openTemplates(pageTitle()));
   el.btnSettings.addEventListener("click", () => openSettings());
   el.btnView.addEventListener("click", () => toggleView());
@@ -589,9 +627,16 @@ async function init(): Promise<void> {
   window.addEventListener("beforeunload", () => void flushSave());
 
   window.addEventListener("keydown", (e) => {
-    if ((e.ctrlKey || e.metaKey) && e.key === "s") {
+    const mod = e.ctrlKey || e.metaKey;
+    if (mod && e.key.toLowerCase() === "s") {
       e.preventDefault();
       void flushSave();
+    } else if (mod && !e.shiftKey && e.key.toLowerCase() === "p") {
+      e.preventDefault();
+      doPalette();
+    } else if (mod && e.shiftKey && e.key.toLowerCase() === "f") {
+      e.preventDefault();
+      doSearch();
     }
   });
 

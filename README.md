@@ -197,11 +197,12 @@ El frontend nunca toca el disco directamente. Todo pasa por comandos Rust con ru
 
 ## Hoja de ruta razonable
 
-1. Enlaces wiki `[[Página]]` con autocompletado y creación al hacer clic (plugin ProseMirror propio).
-2. Búsqueda de texto completo (crate `grep` o índice tantivy).
-3. Vigilancia de cambios externos con `notify` para recargar el árbol.
-4. Exportar rama a HTML/PDF vía pandoc.
-5. Paleta de comandos (Ctrl+P) para saltar entre páginas.
+Ya implementado: enlaces wiki `[[Página]]`, **búsqueda de texto** en todo el
+cuaderno (Ctrl+Mayús+F) y **paleta de comandos** (Ctrl+P). Pendiente:
+
+1. Vigilancia de cambios externos con `notify` para recargar el árbol.
+2. Exportar rama a HTML/PDF vía pandoc.
+3. Búsqueda con índice (tantivy) si el cuaderno crece mucho.
 
 ## Licencia
 

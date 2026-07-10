@@ -172,6 +172,77 @@ fn build_tree(dir: &Path, root: &Path) -> Result<Vec<PageNode>, String> {
     Ok(nodes)
 }
 
+#[derive(Serialize)]
+pub struct SearchHit {
+    rel_path: String,
+    name: String,
+    line: usize,
+    snippet: String,
+}
+
+/// Busca `query_lc` (ya en minúsculas) en el contenido de los .md bajo `dir`.
+fn search_dir(dir: &Path, root: &Path, query_lc: &str, hits: &mut Vec<SearchHit>, limit: usize) {
+    if hits.len() >= limit {
+        return;
+    }
+    let entries = match fs::read_dir(dir) {
+        Ok(e) => e,
+        Err(_) => return,
+    };
+    let mut list: Vec<_> = entries.filter_map(|e| e.ok()).collect();
+    list.sort_by_key(|e| e.file_name().to_string_lossy().to_lowercase());
+    for entry in list {
+        if hits.len() >= limit {
+            return;
+        }
+        let path = entry.path();
+        let name = entry.file_name().to_string_lossy().to_string();
+        if name.starts_with('.') {
+            continue;
+        }
+        if path.is_dir() {
+            search_dir(&path, root, query_lc, hits, limit);
+        } else if path.extension().and_then(|e| e.to_str()) == Some("md") {
+            let Ok(content) = fs::read_to_string(&path) else { continue };
+            let rel = path
+                .strip_prefix(root)
+                .unwrap_or(&path)
+                .to_string_lossy()
+                .replace('\\', "/");
+            let stem = path
+                .file_stem()
+                .map(|s| s.to_string_lossy().to_string())
+                .unwrap_or_default();
+            for (i, line) in content.lines().enumerate() {
+                if line.to_lowercase().contains(query_lc) {
+                    hits.push(SearchHit {
+                        rel_path: rel.clone(),
+                        name: stem.clone(),
+                        line: i + 1,
+                        snippet: line.trim().chars().take(160).collect(),
+                    });
+                    if hits.len() >= limit {
+                        return;
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// Busca texto en todo el cuaderno. Devuelve coincidencias por línea.
+#[tauri::command]
+fn search_notebook(state: State<'_, NotebookState>, query: String) -> Result<Vec<SearchHit>, String> {
+    let root = state.root()?;
+    let q = query.trim().to_lowercase();
+    if q.is_empty() {
+        return Ok(vec![]);
+    }
+    let mut hits = Vec::new();
+    search_dir(&root, &root, &q, &mut hits, 300);
+    Ok(hits)
+}
+
 /// Abre el diálogo nativo de selección de carpeta desde el backend (lado de
 /// confianza), canonicaliza la ruta elegida y la fija como raíz del cuaderno.
 /// Devuelve la ruta mostrable, o `None` si el usuario cancela. El webview no
@@ -658,7 +729,8 @@ pub fn run() {
             open_recent,
             read_ai_config,
             write_ai_config,
-            ai_complete
+            ai_complete,
+            search_notebook
         ])
         .run(tauri::generate_context!())
         .expect("error al arrancar Cuadernillo");
