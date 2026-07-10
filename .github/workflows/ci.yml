@@ -1,0 +1,23 @@
+name: CI
+
+# Comprobación rápida en cada push a main y en cada PR: typecheck de TypeScript.
+# Red de seguridad barata (npm run dev NO ejecuta tsc; el build de release sí,
+# pero esto lo caza mucho antes).
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  typecheck:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Instalar Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Instalar dependencias
+        run: npm install
+      - name: Typecheck (tsc --noEmit)
+        run: npx tsc --noEmit
