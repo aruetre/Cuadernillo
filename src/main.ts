@@ -13,6 +13,7 @@ import { openNotePicker } from "./picker";
 import { openAi } from "./ai";
 import { openSearch } from "./search";
 import { openPalette, type PaletteCommand } from "./palette";
+import { exportHtml, exportPdf } from "./export";
 import { loadPageIcons, resetPageIcons, getPageIcon, setPageIcon, openIconPicker } from "./pageIcons";
 import { renderOutline } from "./outline";
 
@@ -40,6 +41,7 @@ const el = {
   btnToggleToolbar: document.getElementById("btn-toggle-toolbar") as HTMLButtonElement,
   btnView: document.getElementById("btn-view") as HTMLButtonElement,
   btnCopyDoc: document.getElementById("btn-copy-doc") as HTMLButtonElement,
+  btnExport: document.getElementById("btn-export") as HTMLButtonElement,
   btnTemplates: document.getElementById("btn-templates") as HTMLButtonElement,
   btnSettings: document.getElementById("btn-settings") as HTMLButtonElement,
   btnHelp: document.getElementById("btn-help") as HTMLButtonElement,
@@ -430,6 +432,38 @@ async function aiCreateDoc(title: string, markdown: string): Promise<void> {
   }
 }
 
+function openExportMenu(): void {
+  const prev = document.querySelector(".copy-menu");
+  if (prev) { prev.remove(); return; }
+  const menu = document.createElement("div");
+  menu.className = "copy-menu";
+  const items: [string, () => void][] = [
+    ["Exportar a HTML…", () => void exportHtml(pageTitle() || "documento")],
+    ["Imprimir / Guardar como PDF", () => exportPdf()],
+  ];
+  for (const [label, fn] of items) {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "copy-menu-item";
+    b.textContent = label;
+    b.addEventListener("click", () => { menu.remove(); fn(); });
+    menu.appendChild(b);
+  }
+  document.body.appendChild(menu);
+  const r = el.btnExport.getBoundingClientRect();
+  menu.style.left = `${Math.min(r.left, window.innerWidth - 240)}px`;
+  menu.style.top = `${r.bottom + 4}px`;
+  setTimeout(() => {
+    const close = (e: MouseEvent) => {
+      if (!menu.contains(e.target as Node) && e.target !== el.btnExport) {
+        menu.remove();
+        document.removeEventListener("mousedown", close, true);
+      }
+    };
+    document.addEventListener("mousedown", close, true);
+  }, 0);
+}
+
 function openAiPanel(): void {
   openAi({
     getMarkdown: () => getContent(),
@@ -457,6 +491,8 @@ function doPalette(): void {
     { label: "Plantillas", run: () => openTemplates(pageTitle()) },
     { label: "Insertar imagen", run: () => void insertImage() },
     { label: "Copiar documento", run: () => openCopyMenu() },
+    { label: "Exportar a HTML", run: () => void exportHtml(pageTitle() || "documento") },
+    { label: "Imprimir / Guardar como PDF", run: exportPdf },
     { label: "Insertar fecha", run: insertDate },
     { label: "Insertar hora", run: insertTime },
     { label: "Cambiar tema claro/oscuro", run: toggleTheme },
@@ -529,6 +565,7 @@ function updatePageButtons(): void {
   el.btnDelete.disabled = !hasPage;
   el.btnView.disabled = !hasPage;
   el.btnCopyDoc.disabled = !hasPage;
+  el.btnExport.disabled = !hasPage;
   el.btnTemplates.disabled = !hasPage;
   el.btnSettings.disabled = notebookRoot === null;
 }
@@ -574,6 +611,7 @@ function setupHeaderIcons(): void {
   el.btnOutlineClose.innerHTML = icon("sidebar-right");
   el.btnView.innerHTML = icon("markup");
   el.btnCopyDoc.innerHTML = icon("copy");
+  el.btnExport.innerHTML = icon("export");
   el.btnTemplates.innerHTML = icon("template");
   el.btnSettings.innerHTML = icon("settings");
   el.btnAi.innerHTML = icon("ai");
@@ -618,6 +656,7 @@ async function init(): Promise<void> {
   el.btnSettings.addEventListener("click", () => openSettings());
   el.btnView.addEventListener("click", () => toggleView());
   el.btnCopyDoc.addEventListener("click", () => openCopyMenu());
+  el.btnExport.addEventListener("click", () => openExportMenu());
   el.btnToggleToolbar.addEventListener("click", () =>
     applyToolbarHidden(!el.toolbar.classList.contains("hidden")));
   el.btnToggleSidebar.addEventListener("click", () =>

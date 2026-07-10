@@ -730,6 +730,29 @@ async fn ai_complete(app: AppHandle, system: String, prompt: String) -> Result<S
     Ok(content)
 }
 
+/// Guarda `content` en la ruta que el usuario elija en el diálogo nativo (para
+/// exportar HTML). Devuelve la ruta o `None` si cancela.
+#[tauri::command]
+async fn export_file(
+    app: AppHandle,
+    content: String,
+    default_name: String,
+    extension: String,
+) -> Result<Option<String>, String> {
+    let Some(file) = app
+        .dialog()
+        .file()
+        .set_file_name(&default_name)
+        .add_filter(extension.to_uppercase(), &[extension.as_str()])
+        .blocking_save_file()
+    else {
+        return Ok(None);
+    };
+    let path = file.into_path().map_err(|e| e.to_string())?;
+    fs::write(&path, content).map_err(|e| format!("No se pudo exportar: {e}"))?;
+    Ok(Some(path.to_string_lossy().to_string()))
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -757,7 +780,8 @@ pub fn run() {
             read_ai_config,
             write_ai_config,
             ai_complete,
-            search_notebook
+            search_notebook,
+            export_file
         ])
         .run(tauri::generate_context!())
         .expect("error al arrancar Cuadernillo");

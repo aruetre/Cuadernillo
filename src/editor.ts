@@ -22,7 +22,7 @@ import { clipboard } from "@milkdown/kit/plugin/clipboard";
 import { indent } from "@milkdown/kit/plugin/indent";
 import { cursor } from "@milkdown/kit/plugin/cursor";
 import { listener, listenerCtx } from "@milkdown/kit/plugin/listener";
-import { replaceAll, callCommand, getMarkdown, insert, $prose } from "@milkdown/kit/utils";
+import { replaceAll, callCommand, getMarkdown, getHTML, insert, $prose } from "@milkdown/kit/utils";
 import { Plugin, PluginKey, NodeSelection, TextSelection } from "@milkdown/kit/prose/state";
 import { Decoration, DecorationSet } from "@milkdown/kit/prose/view";
 import { codeBlockComponent, codeBlockConfig } from "@milkdown/kit/component/code-block";
@@ -345,6 +345,25 @@ export function setContent(markdown: string): void {
 export function getContent(): string {
   if (!editor) return "";
   return editor.action(getMarkdown());
+}
+
+/** HTML limpio del documento, con las imágenes incrustadas como data-URL (para
+ *  exportar a un fichero autocontenido). */
+export async function getDocumentHtml(): Promise<string> {
+  if (!editor) return "";
+  const div = document.createElement("div");
+  div.innerHTML = editor.action(getHTML());
+  for (const img of Array.from(div.querySelectorAll("img"))) {
+    const raw = img.getAttribute("src") ?? "";
+    if (!raw || /^(data|https?):/i.test(raw)) continue;
+    let rel = raw;
+    try { rel = decodeURIComponent(raw); } catch { /* ya literal */ }
+    try {
+      const url = imgCache.get(raw) ?? (await invoke<string>("read_attachment", { rel }));
+      img.setAttribute("src", url);
+    } catch { /* deja la ruta relativa */ }
+  }
+  return div.innerHTML;
 }
 
 export function focusEditor(): void {

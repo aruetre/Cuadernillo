@@ -1094,6 +1094,30 @@ button svg { pointer-events: none; }
 .ai-intro code { font-family: var(--mono); font-size: 0.9em; background: var(--code-inline-bg); padding: 0 4px; border-radius: 3px; }
 .ai-intro-note { color: var(--fg-muted); font-size: 12px; }
 
+/* ---------- Impresión / PDF: solo el documento ---------- */
+
+@media print {
+  #titlebar, #sidebar, #outline-panel, #page-header, #toolbar,
+  #source-view, #welcome, .retro-caret, .modal-overlay { display: none !important; }
+  html, body, #app, #content, #editor-wrap {
+    display: block !important;
+    height: auto !important;
+    overflow: visible !important;
+    background: #fff !important;
+  }
+  .milkdown {
+    box-shadow: none !important;
+    border: none !important;
+    margin: 0 auto !important;
+    max-width: 100% !important;
+    min-height: 0 !important;
+    background: #fff !important;
+  }
+  .milkdown .ProseMirror { color: #000 !important; }
+  .milkdown .ProseMirror h1, .milkdown .ProseMirror h2,
+  .milkdown .ProseMirror h3, .milkdown .ProseMirror h4 { color: #14315c !important; }
+}
+
 /* ---------- Desplegable de la barra (admonitions) ---------- */
 
 .tbtn-dropdown { position: relative; display: inline-flex; }
