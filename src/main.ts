@@ -14,6 +14,7 @@ import { openAi } from "./ai";
 import { openSearch } from "./search";
 import { openPalette, type PaletteCommand } from "./palette";
 import { exportHtml, exportPdf } from "./export";
+import { checkForUpdates } from "./updater";
 import { loadPageIcons, resetPageIcons, getPageIcon, setPageIcon, openIconPicker } from "./pageIcons";
 import { renderOutline } from "./outline";
 
@@ -497,6 +498,7 @@ function doPalette(): void {
     { label: "Insertar hora", run: insertTime },
     { label: "Cambiar tema claro/oscuro", run: toggleTheme },
     { label: "Mostrar/ocultar índice", run: () => applyOutlineCollapsed(!el.app.classList.contains("outline-collapsed")) },
+    { label: "Buscar actualizaciones", run: () => void checkForUpdates(false) },
     { label: "Ayuda de markdown", run: () => openHelp() },
     { label: "Renombrar página", run: () => void renamePage() },
     { label: "Eliminar página", run: () => void deletePage() },
@@ -698,6 +700,9 @@ async function init(): Promise<void> {
 
   // Recordar el último cuaderno: reabre el más reciente al arrancar.
   void autoOpenLast();
+
+  // Comprobación silenciosa de actualizaciones al arrancar (a los 3 s).
+  window.setTimeout(() => void checkForUpdates(true), 3000);
 }
 
 void init();

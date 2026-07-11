@@ -7,3 +7,8 @@ src-tauri/icons/
 .DS_Store
 *:Zone.Identifier
 Thumbs.db
+
+# Claves de firma del updater (NO subir)
+cuadernillo_updater.key
+cuadernillo_updater.key.pub
+*.key

@@ -34,7 +34,9 @@
     "@fontsource/roboto": "^5.1.0",
     "@milkdown/kit": "^7.15.0",
     "@tauri-apps/api": "^2.5.0",
-    "@tauri-apps/plugin-dialog": "^2.2.0"
+    "@tauri-apps/plugin-dialog": "^2.2.0",
+    "@tauri-apps/plugin-process": "^2.2.0",
+    "@tauri-apps/plugin-updater": "^2.5.0"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2.5.0",
