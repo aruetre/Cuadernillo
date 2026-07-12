@@ -1025,6 +1025,56 @@ async fn ai_stream(app: AppHandle, system: String, prompt: String) -> Result<(),
     Ok(())
 }
 
+fn zip_dir<W: std::io::Write + std::io::Seek>(
+    dir: &Path,
+    root: &Path,
+    zip: &mut zip::ZipWriter<W>,
+    opts: zip::write::SimpleFileOptions,
+) -> Result<(), String> {
+    use std::io::Write;
+    for entry in fs::read_dir(dir).map_err(|e| e.to_string())?.filter_map(|e| e.ok()) {
+        let path = entry.path();
+        let rel = path.strip_prefix(root).unwrap_or(&path).to_string_lossy().replace('\\', "/");
+        if path.is_dir() {
+            zip_dir(&path, root, zip, opts)?;
+        } else {
+            zip.start_file(&rel, opts).map_err(|e| e.to_string())?;
+            let data = fs::read(&path).map_err(|e| e.to_string())?;
+            zip.write_all(&data).map_err(|e| e.to_string())?;
+        }
+    }
+    Ok(())
+}
+
+/// Exporta todo el cuaderno a un .zip (copia de seguridad) en la ruta elegida.
+#[tauri::command]
+async fn export_notebook_zip(
+    app: AppHandle,
+    state: State<'_, NotebookState>,
+) -> Result<Option<String>, String> {
+    let root = state.root()?;
+    let default_name = format!(
+        "{}.zip",
+        root.file_name().map(|s| s.to_string_lossy().to_string()).unwrap_or_else(|| "cuaderno".into())
+    );
+    let Some(file) = app
+        .dialog()
+        .file()
+        .set_file_name(&default_name)
+        .add_filter("ZIP", &["zip"])
+        .blocking_save_file()
+    else {
+        return Ok(None);
+    };
+    let path = file.into_path().map_err(|e| e.to_string())?;
+    let f = fs::File::create(&path).map_err(|e| format!("No se pudo crear el zip: {e}"))?;
+    let mut zip = zip::ZipWriter::new(f);
+    let opts = zip::write::SimpleFileOptions::default();
+    zip_dir(&root, &root, &mut zip, opts)?;
+    zip.finish().map_err(|e| e.to_string())?;
+    Ok(Some(path.to_string_lossy().to_string()))
+}
+
 /// Guarda `content` en la ruta que el usuario elija en el diálogo nativo (para
 /// exportar HTML). Devuelve la ruta o `None` si cancela.
 #[tauri::command]
@@ -1087,7 +1137,8 @@ pub fn run() {
             export_file,
             list_trash,
             restore_trash,
-            find_backlinks
+            find_backlinks,
+            export_notebook_zip
         ])
         .run(tauri::generate_context!())
         .expect("error al arrancar Cuadernillo");

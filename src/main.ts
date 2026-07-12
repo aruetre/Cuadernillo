@@ -475,6 +475,16 @@ async function aiCreateDoc(title: string, markdown: string): Promise<void> {
   }
 }
 
+async function exportNotebook(): Promise<void> {
+  if (!notebookRoot) { window.alert("Abre un cuaderno."); return; }
+  try {
+    const path = await invoke<string | null>("export_notebook_zip");
+    if (path) window.alert("Cuaderno exportado a:\n" + path);
+  } catch (e) {
+    window.alert(String(e));
+  }
+}
+
 function openExportMenu(): void {
   const prev = document.querySelector(".copy-menu");
   if (prev) { prev.remove(); return; }
@@ -483,6 +493,7 @@ function openExportMenu(): void {
   const items: [string, () => void][] = [
     ["Exportar a HTML…", () => void exportHtml(pageTitle() || "documento")],
     ["Imprimir / Guardar como PDF", () => exportPdf()],
+    ["Copia de seguridad del cuaderno (.zip)", () => void exportNotebook()],
   ];
   for (const [label, fn] of items) {
     const b = document.createElement("button");
@@ -537,6 +548,7 @@ function doPalette(): void {
     { label: "Copiar documento", run: () => openCopyMenu() },
     { label: "Exportar a HTML", run: () => void exportHtml(pageTitle() || "documento") },
     { label: "Imprimir / Guardar como PDF", run: exportPdf },
+    { label: "Copia de seguridad del cuaderno (.zip)", run: () => void exportNotebook() },
     { label: "Layout de la página (tamaño/márgenes)", run: () => el.btnLayout.click() },
     { label: "Acerca de / Novedades", run: () => void openAbout() },
     { label: "Insertar fecha", run: insertDate },
