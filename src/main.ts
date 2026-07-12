@@ -12,6 +12,7 @@ import { openSettings, loadSettings, resetSettings } from "./settings";
 import { openNotePicker } from "./picker";
 import { openAi } from "./ai";
 import { openSearch } from "./search";
+import { openFind } from "./find";
 import { openPalette, type PaletteCommand } from "./palette";
 import { exportHtml, exportPdf } from "./export";
 import { checkForUpdates } from "./updater";
@@ -525,6 +526,7 @@ function doSearch(): void {
 function doPalette(): void {
   const commands: PaletteCommand[] = [
     { label: "Buscar texto en el cuaderno", hint: "Ctrl+Mayús+F", run: doSearch },
+    { label: "Buscar y reemplazar en el documento", hint: "Ctrl+F", run: () => { if (currentPage) openFind(); } },
     { label: "Nueva página", run: () => void newPage() },
     { label: "Abrir cuaderno", run: () => void openNotebook() },
     { label: "Cambiar de cuaderno (recientes)", run: () => void openRecentsMenu() },
@@ -775,6 +777,9 @@ async function init(): Promise<void> {
     } else if (mod && e.shiftKey && e.key.toLowerCase() === "f") {
       e.preventDefault();
       doSearch();
+    } else if (mod && !e.shiftKey && e.key.toLowerCase() === "f") {
+      e.preventDefault();
+      if (currentPage && !sourceMode) openFind();
     } else if (mod && (e.key === "+" || e.key === "=")) {
       e.preventDefault();
       applyZoom(currentZoom() + 0.1);

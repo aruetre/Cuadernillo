@@ -208,6 +208,123 @@ const blockCursor = $prose(
     })
 );
 
+// --- Buscar y reemplazar dentro del documento --------------------------------
+
+interface FindState { query: string; matches: { from: number; to: number }[]; active: number; }
+const findKey = new PluginKey<FindState>("cuadernillo-find");
+
+function computeMatches(doc: import("@milkdown/kit/prose/model").Node, query: string): { from: number; to: number }[] {
+  const q = query.toLowerCase();
+  const out: { from: number; to: number }[] = [];
+  if (!q) return out;
+  doc.descendants((node, pos) => {
+    if (!node.isText || !node.text) return;
+    const text = node.text.toLowerCase();
+    let idx = text.indexOf(q);
+    while (idx !== -1) {
+      out.push({ from: pos + idx, to: pos + idx + q.length });
+      idx = text.indexOf(q, idx + q.length);
+    }
+  });
+  return out;
+}
+
+const findPlugin = $prose(
+  () =>
+    new Plugin<FindState>({
+      key: findKey,
+      state: {
+        init: () => ({ query: "", matches: [], active: 0 }),
+        apply(tr, prev) {
+          const meta = tr.getMeta(findKey) as Partial<FindState> | undefined;
+          let query = meta?.query !== undefined ? meta.query : prev.query;
+          let active = meta?.active !== undefined ? meta.active : prev.active;
+          if (meta?.query !== undefined) active = 0;
+          if (!query) return { query: "", matches: [], active: 0 };
+          if (tr.docChanged || meta?.query !== undefined) {
+            const matches = computeMatches(tr.doc, query);
+            return { query, matches, active: Math.min(active, Math.max(0, matches.length - 1)) };
+          }
+          return { query, matches: prev.matches, active };
+        },
+      },
+      props: {
+        decorations(state) {
+          const fs = findKey.getState(state);
+          if (!fs || !fs.query) return DecorationSet.empty;
+          return DecorationSet.create(
+            state.doc,
+            fs.matches.map((m, i) =>
+              Decoration.inline(m.from, m.to, { class: i === fs.active ? "find-match find-active" : "find-match" })
+            )
+          );
+        },
+      },
+    })
+);
+
+function withView<T>(fn: (view: import("@milkdown/kit/prose/view").EditorView) => T): T | undefined {
+  if (!editor) return undefined;
+  return editor.action((ctx) => fn(ctx.get(editorViewCtx)));
+}
+
+export function findInfo(): { count: number; active: number } {
+  const fs = withView((v) => findKey.getState(v.state));
+  return { count: fs?.matches.length ?? 0, active: fs?.active ?? 0 };
+}
+
+export function findSetQuery(query: string): { count: number; active: number } {
+  withView((v) => v.dispatch(v.state.tr.setMeta(findKey, { query })));
+  return findInfo();
+}
+
+function goToActive(delta: number): { count: number; active: number } {
+  withView((v) => {
+    const fs = findKey.getState(v.state);
+    if (!fs || fs.matches.length === 0) return;
+    const active = (fs.active + delta + fs.matches.length) % fs.matches.length;
+    const m = fs.matches[active];
+    v.dispatch(
+      v.state.tr
+        .setMeta(findKey, { active })
+        .setSelection(TextSelection.create(v.state.doc, m.from, m.to))
+        .scrollIntoView()
+    );
+  });
+  return findInfo();
+}
+export const findNext = () => goToActive(1);
+export const findPrev = () => goToActive(-1);
+
+export function findReplace(replacement: string): { count: number; active: number } {
+  withView((v) => {
+    const fs = findKey.getState(v.state);
+    const m = fs?.matches[fs.active];
+    if (!m) return;
+    v.dispatch(v.state.tr.insertText(replacement, m.from, m.to));
+  });
+  return findInfo();
+}
+
+export function findReplaceAll(replacement: string): number {
+  let n = 0;
+  withView((v) => {
+    const fs = findKey.getState(v.state);
+    if (!fs || fs.matches.length === 0) return;
+    n = fs.matches.length;
+    const tr = v.state.tr;
+    for (let i = fs.matches.length - 1; i >= 0; i--) {
+      tr.insertText(replacement, fs.matches[i].from, fs.matches[i].to);
+    }
+    v.dispatch(tr);
+  });
+  return n;
+}
+
+export function findClear(): void {
+  withView((v) => v.dispatch(v.state.tr.setMeta(findKey, { query: "" })));
+}
+
 // --- Resolución de imágenes: src relativo → data-URL (solo en el DOM) ---------
 // El modelo de ProseMirror conserva la ruta relativa (para el markdown); aquí
 // solo cambiamos el src del <img> mostrado, sin afectar a lo que se guarda.
@@ -295,6 +412,7 @@ async function build(): Promise<void> {
     .use(enhancePlugin)
     .use(trailingParagraph)
     .use(blockCursor)
+    .use(findPlugin)
     .create();
 
   // Corrector ortográfico del webview (subrayado + sugerencias con clic derecho).
