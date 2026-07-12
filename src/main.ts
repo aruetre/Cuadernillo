@@ -15,6 +15,8 @@ import { openSearch } from "./search";
 import { openPalette, type PaletteCommand } from "./palette";
 import { exportHtml, exportPdf } from "./export";
 import { checkForUpdates } from "./updater";
+import { loadLayouts, resetLayouts, getLayout, setLayout, applyLayout, DEFAULT_LAYOUT, openLayoutMenu } from "./layout";
+import { openAbout, maybeShowWhatsNew } from "./about";
 import { loadPageIcons, resetPageIcons, getPageIcon, setPageIcon, openIconPicker } from "./pageIcons";
 import { renderOutline } from "./outline";
 
@@ -41,6 +43,8 @@ const el = {
   btnSearch: document.getElementById("btn-search") as HTMLButtonElement,
   btnToggleToolbar: document.getElementById("btn-toggle-toolbar") as HTMLButtonElement,
   btnView: document.getElementById("btn-view") as HTMLButtonElement,
+  btnLayout: document.getElementById("btn-layout") as HTMLButtonElement,
+  btnAbout: document.getElementById("btn-about") as HTMLButtonElement,
   btnCopyDoc: document.getElementById("btn-copy-doc") as HTMLButtonElement,
   btnExport: document.getElementById("btn-export") as HTMLButtonElement,
   btnTemplates: document.getElementById("btn-templates") as HTMLButtonElement,
@@ -106,6 +110,7 @@ async function activateNotebook(display: string): Promise<void> {
   updatePageButtons();
   await loadSettings();
   await loadPageIcons();
+  await loadLayouts();
   await refreshTree();
 }
 
@@ -180,6 +185,7 @@ async function openPage(relPath: string): Promise<void> {
   currentPage = relPath;
   el.pagePath.textContent = relPath;
   el.editorWrap.classList.add("has-page");
+  applyLayout(getLayout(relPath));
   setContent(content);
   renderOutline(el.outline, content, gotoHeading);
   if (sourceMode) el.sourceView.value = content;
@@ -194,6 +200,7 @@ function showWelcome(): void {
   el.editorWrap.classList.remove("has-page");
   setViewMode(false);
   clearOutline();
+  applyLayout(DEFAULT_LAYOUT);
 }
 
 function scheduleSave(markdown: string): void {
@@ -494,6 +501,8 @@ function doPalette(): void {
     { label: "Copiar documento", run: () => openCopyMenu() },
     { label: "Exportar a HTML", run: () => void exportHtml(pageTitle() || "documento") },
     { label: "Imprimir / Guardar como PDF", run: exportPdf },
+    { label: "Layout de la página (tamaño/márgenes)", run: () => el.btnLayout.click() },
+    { label: "Acerca de / Novedades", run: () => void openAbout() },
     { label: "Insertar fecha", run: insertDate },
     { label: "Insertar hora", run: insertTime },
     { label: "Cambiar tema claro/oscuro", run: toggleTheme },
@@ -567,6 +576,7 @@ function updatePageButtons(): void {
   el.btnRename.disabled = !hasPage;
   el.btnDelete.disabled = !hasPage;
   el.btnView.disabled = !hasPage;
+  el.btnLayout.disabled = !hasPage;
   el.btnCopyDoc.disabled = !hasPage;
   el.btnExport.disabled = !hasPage;
   el.btnTemplates.disabled = !hasPage;
@@ -618,6 +628,8 @@ function setupHeaderIcons(): void {
   el.btnToggleOutline.innerHTML = icon("sidebar-right");
   el.btnOutlineClose.innerHTML = icon("sidebar-right");
   el.btnView.innerHTML = icon("markup");
+  el.btnLayout.innerHTML = icon("layout");
+  el.btnAbout.innerHTML = icon("info");
   el.btnCopyDoc.innerHTML = icon("copy");
   el.btnExport.innerHTML = icon("export");
   el.btnTemplates.innerHTML = icon("template");
@@ -663,6 +675,13 @@ async function init(): Promise<void> {
   el.btnTemplates.addEventListener("click", () => openTemplates(pageTitle()));
   el.btnSettings.addEventListener("click", () => openSettings());
   el.btnView.addEventListener("click", () => toggleView());
+  el.btnLayout.addEventListener("click", () => {
+    const page = currentPage;
+    if (!page) return;
+    const r = el.btnLayout.getBoundingClientRect();
+    openLayoutMenu(r.left, r.bottom + 4, getLayout(page), (l) => setLayout(page, l));
+  });
+  el.btnAbout.addEventListener("click", () => void openAbout());
   el.btnCopyDoc.addEventListener("click", () => openCopyMenu());
   el.btnExport.addEventListener("click", () => openExportMenu());
   el.btnToggleToolbar.addEventListener("click", () =>
@@ -684,6 +703,7 @@ async function init(): Promise<void> {
   applyOutlineCollapsed(localStorage.getItem("cuadernillo.outlineCollapsed") === "1");
   resetSettings();
   resetPageIcons();
+  resetLayouts();
 
   // Vigilancia de cambios externos en el cuaderno.
   void listen("notebook-changed", () => onExternalChange());
@@ -710,6 +730,9 @@ async function init(): Promise<void> {
 
   // Comprobación silenciosa de actualizaciones al arrancar (a los 3 s).
   window.setTimeout(() => void checkForUpdates(true), 3000);
+
+  // Muestra las novedades si es la primera vez que se abre esta versión.
+  void maybeShowWhatsNew();
 }
 
 void init();

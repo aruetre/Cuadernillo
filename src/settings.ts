@@ -9,8 +9,6 @@ interface Config {
   font: string;        // id del catálogo FONTS
   customFont: string;  // fuente escrita a mano (tiene prioridad si no está vacía)
   fontSize: number;    // px
-  width: number;       // px, ancho del "papel"
-  margin: number;      // px, margen interior del documento
   codeTheme: CodeTheme;
 }
 
@@ -18,8 +16,6 @@ const DEFAULTS: Config = {
   font: "charter",
   customFont: "",
   fontSize: 16.5,
-  width: 820,
-  margin: 64,
   codeTheme: "dark",
 };
 
@@ -62,8 +58,6 @@ function applyConfig(): void {
   const r = document.documentElement.style;
   r.setProperty("--doc-font", fontStack());
   r.setProperty("--doc-font-size", `${config.fontSize}px`);
-  r.setProperty("--doc-width", `${config.width}px`);
-  r.setProperty("--doc-pad-x", `${config.margin}px`);
 }
 
 function applyCss(): void {
@@ -221,11 +215,8 @@ export function openSettings(): void {
   };
 
   body.appendChild(field("Tamaño del texto",
-    slider(12, 24, 0.5, config.fontSize, (v) => { config.fontSize = v; applyConfig(); saveConfig(); })));
-  body.appendChild(field("Ancho del documento",
-    slider(560, 1200, 20, config.width, (v) => { config.width = v; applyConfig(); saveConfig(); })));
-  body.appendChild(field("Márgenes interiores",
-    slider(16, 120, 4, config.margin, (v) => { config.margin = v; applyConfig(); saveConfig(); })));
+    slider(12, 24, 0.5, config.fontSize, (v) => { config.fontSize = v; applyConfig(); saveConfig(); }),
+    "El tamaño y los márgenes de página se eligen por documento con el botón de layout de la cabecera."));
 
   // Tema de los bloques de código
   const themeSel = document.createElement("select");
