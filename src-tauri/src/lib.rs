@@ -643,6 +643,45 @@ fn read_attachment(state: State<'_, NotebookState>, rel: String) -> Result<Strin
     Ok(format!("data:{mime};base64,{b64}"))
 }
 
+/// Copia una imagen arrastrada (ruta absoluta del sistema) a
+/// `attachments/<página>/` y devuelve su ruta relativa (posix).
+#[tauri::command]
+fn import_dropped_image(
+    state: State<'_, NotebookState>,
+    page: String,
+    src: String,
+) -> Result<Option<String>, String> {
+    let root = state.root()?;
+    let src_path = Path::new(&src);
+    if !src_path.is_file() {
+        return Err("No es un archivo válido".into());
+    }
+    let page_stem = page.trim_end_matches(".md");
+    let mut dest_dir = root.join("attachments");
+    for part in page_stem.split('/') {
+        let part = part.trim();
+        if part.is_empty() || part == "." || part == ".." {
+            return Err("Página no válida para adjuntar".into());
+        }
+        dest_dir.push(part);
+    }
+    fs::create_dir_all(&dest_dir).map_err(|e| e.to_string())?;
+    ensure_within(&root, &dest_dir)?;
+    let filename = src_path
+        .file_name()
+        .map(|s| s.to_string_lossy().to_string())
+        .ok_or_else(|| "Nombre de archivo no válido".to_string())?;
+    let filename = sanitize_filename(&filename);
+    let dest = unique_path(&dest_dir, &filename);
+    fs::copy(src_path, &dest).map_err(|e| format!("No se pudo copiar la imagen: {e}"))?;
+    let rel = dest
+        .strip_prefix(&root)
+        .map_err(|_| "Ruta fuera del cuaderno".to_string())?
+        .to_string_lossy()
+        .replace('\\', "/");
+    Ok(Some(rel))
+}
+
 // --- IA (API compatible OpenAI; por defecto NVIDIA gratuita) -----------------
 // Config global de la app (no del cuaderno): API key, modelo y endpoint.
 
@@ -859,6 +898,7 @@ pub fn run() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_window_state::Builder::new().build())
         .manage(NotebookState::default())
         .manage(WatcherState::default())
         .invoke_handler(tauri::generate_handler![
@@ -879,6 +919,7 @@ pub fn run() {
             write_page_layouts,
             import_attachment,
             read_attachment,
+            import_dropped_image,
             list_recent_notebooks,
             open_recent,
             read_ai_config,

@@ -743,6 +743,24 @@ async function init(): Promise<void> {
   // Vigilancia de cambios externos en el cuaderno.
   void listen("notebook-changed", () => onExternalChange());
 
+  // Arrastrar y soltar imágenes al editor → se copian a attachments y se insertan.
+  void getCurrentWindow().onDragDropEvent(async (event) => {
+    const p = event.payload;
+    if (p.type !== "drop" || !currentPage) return;
+    const imgExt = /\.(png|jpe?g|gif|webp|svg|bmp)$/i;
+    for (const path of p.paths.filter((x) => imgExt.test(x))) {
+      try {
+        const rel = await invoke<string | null>("import_dropped_image", { page: currentPage, src: path });
+        if (rel) {
+          const alt = rel.split("/").pop()?.replace(/\.[^.]+$/, "") ?? "imagen";
+          insertMarkdown(`![${alt}](${rel})`, true);
+        }
+      } catch (err) {
+        console.error("Error al soltar imagen:", err);
+      }
+    }
+  });
+
   window.addEventListener("blur", () => void flushSave());
   window.addEventListener("beforeunload", () => void flushSave());
 
