@@ -52,18 +52,18 @@ Severidad: 🔴 alta · 🟠 media · 🟡 baja.
 
 | # | Sev | Dónde | Deuda | Propuesta |
 |---|---|---|---|---|
-| D1 | 🔴 | general | **Sin tests automáticos** ni typecheck en CI de PRs. Todo se valida a mano. | Añadir `tsc --noEmit` al workflow y algún test de las funciones puras de Rust (`safe_join`, `sanitize_filename`). |
+| D1 | 🟠 | general | `tsc --noEmit` ya está en el CI (ci.yml); faltan tests de Rust. ni typecheck en CI de PRs. Todo se valida a mano. | Añadir `tsc --noEmit` al workflow y algún test de las funciones puras de Rust (`safe_join`, `sanitize_filename`). |
 | D2 | 🟠 | `editor.ts` `setCodeTheme` | Cambiar el tema de código **reconstruye el editor entero** y recarga el markdown → se pierde el **historial de deshacer** y la posición del cursor. | Usar un `Compartment` de CodeMirror para reconfigurar sin recrear, o avisar de que aplica en recarga. |
 | D3 | 🟠 | `editor.ts` imágenes | Resolución de imágenes vía **MutationObserver + data-URL**. Cada imagen se lee entera a base64 en memoria; sin límite de tamaño ni evicción de caché. | Cache con límite; considerar el protocolo `asset:` para imágenes grandes. |
-| D4 | 🟠 | `iconLibrary.ts` | El buscador carga **todas las colecciones** en memoria y hace **scan lineal** por cada tecla (~30k iconos). Sin debounce. | Debounce en el input; índice o límite por colección; cargar colecciones bajo demanda. |
+| D4 | ✅ | `iconLibrary.ts` | El buscador carga **todas las colecciones** en memoria y hace **scan lineal** por cada tecla (~30k iconos). Sin debounce. | Debounce en el input; índice o límite por colección; cargar colecciones bajo demanda. |
 | D5 | 🟠 | `pageIcons.ts` | El icono de página se guarda como **cadena SVG cruda** en `page-icons.json` (infla el fichero, no se puede re-tematizar). | Guardar el id `prefix:name` y renderizar al vuelo (requiere precargar la colección al pintar el árbol). |
-| D6 | 🟠 | `editor.ts` `blockCursor` | El cursor retro **oculta el caret nativo** globalmente. Si el overlay se descoloca (scroll anidado, zoom), no hay caret visible. Sin probar en todos los escenarios. | Hacerlo opcional (ajuste on/off) y validar posición con contenedores scrolleables. |
-| D7 | 🟠 | code-block CodeMirror | El **selector de lenguaje y el botón copiar** del componente salen sin estilar → rompen el aspecto. (Pendiente de arreglar.) | Estilar/integrar su DOM; requiere ver las clases en la app corriendo. |
+| D6 | ✅ | `editor.ts` `blockCursor` | El cursor retro **oculta el caret nativo** globalmente. Si el overlay se descoloca (scroll anidado, zoom), no hay caret visible. Sin probar en todos los escenarios. | Hacerlo opcional (ajuste on/off) y validar posición con contenedores scrolleables. |
+| D7 | ✅ | code-block CodeMirror | El **selector de lenguaje y el botón copiar** del componente salen sin estilar → rompen el aspecto. (Pendiente de arreglar.) | Estilar/integrar su DOM; requiere ver las clases en la app corriendo. |
 | D8 | 🟡 | `editor.ts` decoraciones | El plugin recomputa decoraciones (`[[wiki]]`, admonitions) sobre **todo el documento en cada transacción**. Fino para notas; puede notarse en docs enormes. | Limitar al rango visible o cachear por nodo. |
 | D9 | 🟡 | `editor.ts` `setContent` | El flag `suppress` se libera con un `setTimeout(50ms)` heurístico → posible carrera al cambiar de página muy rápido. | Basarse en el evento real de actualización en vez de un temporizador. |
 | D10 | 🟡 | admonitions | El marcador `[!NOTE]` **sigue visible** (estilizado como etiqueta), no se oculta como en GitHub. | Ocultarlo con decoración manteniendo el round-trip del markdown. |
-| D11 | 🟡 | `fonts.ts` | Solo se importa el **peso 400**; las negritas del cuerpo son sintéticas (faux-bold). | Importar 400+700 de las fuentes clave. |
-| D12 | 🟡 | enlaces externos | Los enlaces `http(s)` en el editor **no abren** el navegador (solo se navegan los internos). | Interceptar y abrir con el plugin `opener`/`shell` de Tauri. |
+| D11 | ✅ | `fonts.ts` | Solo se importa el **peso 400**; las negritas del cuerpo son sintéticas (faux-bold). | Importar 400+700 de las fuentes clave. |
+| D12 | ✅ | enlaces externos | Los enlaces `http(s)` en el editor **no abren** el navegador (solo se navegan los internos). | Interceptar y abrir con el plugin `opener`/`shell` de Tauri. |
 | D13 | 🟡 | bundle | Iconify + fuentes + CodeMirror **engordan el bundle** y el arranque parsea bastante JSON. | Ya hay lazy-load en iconos; medir y recortar colecciones si molesta. |
 
 ---
