@@ -380,6 +380,10 @@ body { display: flex; flex-direction: column; }
 }
 @keyframes retro-blink { to { visibility: hidden; } }
 
+/* Cursor retro desactivado: caret nativo de vuelta y sin overlay. */
+body.retro-off .milkdown .ProseMirror { caret-color: auto; }
+body.retro-off .retro-caret { display: none !important; }
+
 /* Bloques CodeMirror: no heredan el caret oculto; cursor en bloque grueso. */
 .milkdown .cm-editor .cm-content { caret-color: auto; }
 .milkdown .cm-editor .cm-cursor,

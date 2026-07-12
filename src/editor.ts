@@ -30,6 +30,7 @@ import { languages } from "@codemirror/language-data";
 import { oneDark } from "@codemirror/theme-one-dark";
 import { defaultHighlightStyle, syntaxHighlighting } from "@codemirror/language";
 import { invoke } from "@tauri-apps/api/core";
+import { openUrl } from "@tauri-apps/plugin-opener";
 
 export type CodeTheme = "dark" | "light";
 
@@ -126,6 +127,10 @@ const enhancePlugin = $prose(
             const href = a.getAttribute("href") ?? "";
             if (href && !/^[a-z]+:/i.test(href) && !href.startsWith("#")) {
               navigateCb({ type: "md", target: href });
+              return true;
+            }
+            if (/^https?:/i.test(href)) {
+              void openUrl(href); // enlace externo → navegador del sistema
               return true;
             }
           }

@@ -137,7 +137,11 @@ export function openIconPicker(x: number, y: number, current: string | undefined
   };
 
   void ensureLibraryLoaded().then(() => { ready = true; renderResults(); });
-  search.addEventListener("input", renderResults);
+  let searchTimer: number | undefined;
+  search.addEventListener("input", () => {
+    window.clearTimeout(searchTimer);
+    searchTimer = window.setTimeout(renderResults, 150);
+  });
 
   setTimeout(() => {
     document.addEventListener("mousedown", onOutside, true);

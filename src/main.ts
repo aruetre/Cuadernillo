@@ -497,6 +497,7 @@ function doPalette(): void {
     { label: "Insertar fecha", run: insertDate },
     { label: "Insertar hora", run: insertTime },
     { label: "Cambiar tema claro/oscuro", run: toggleTheme },
+    { label: "Cursor retro (activar/desactivar)", run: () => applyRetroCursor(document.body.classList.contains("retro-off")) },
     { label: "Mostrar/ocultar índice", run: () => applyOutlineCollapsed(!el.app.classList.contains("outline-collapsed")) },
     { label: "Buscar actualizaciones", run: () => void checkForUpdates(false) },
     { label: "Ayuda de markdown", run: () => openHelp() },
@@ -596,6 +597,11 @@ function toggleTheme(): void {
   applyTheme(current === "dark" ? "light" : "dark");
 }
 
+function applyRetroCursor(on: boolean): void {
+  document.body.classList.toggle("retro-off", !on);
+  localStorage.setItem("cuadernillo.retroCursor", on ? "1" : "0");
+}
+
 function applyOutlineCollapsed(collapsed: boolean): void {
   el.app.classList.toggle("outline-collapsed", collapsed);
   el.btnToggleOutline.setAttribute("aria-pressed", collapsed ? "false" : "true");
@@ -672,6 +678,7 @@ async function init(): Promise<void> {
   });
 
   applyTheme(localStorage.getItem("cuadernillo.theme") === "dark" ? "dark" : "light");
+  applyRetroCursor(localStorage.getItem("cuadernillo.retroCursor") !== "0");
   applyToolbarHidden(localStorage.getItem("cuadernillo.toolbarHidden") === "1");
   applySidebarCollapsed(localStorage.getItem("cuadernillo.sidebarCollapsed") === "1");
   applyOutlineCollapsed(localStorage.getItem("cuadernillo.outlineCollapsed") === "1");
