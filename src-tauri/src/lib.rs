@@ -1,3 +1,4 @@
+use futures_util::StreamExt;
 use notify::{RecommendedWatcher, RecursiveMode, Watcher};
 use serde::Serialize;
 use std::fs;
@@ -730,6 +731,94 @@ async fn ai_complete(app: AppHandle, system: String, prompt: String) -> Result<S
     Ok(content)
 }
 
+/// Como `ai_complete` pero en streaming: emite eventos `ai-chunk` con cada
+/// fragmento de texto según llega, `ai-done` al terminar y `ai-error` si falla.
+#[tauri::command]
+async fn ai_stream(app: AppHandle, system: String, prompt: String) -> Result<(), String> {
+    let cfg = load_ai_config(&app);
+    let api_key = cfg.api_key.trim().to_string();
+    if api_key.is_empty() {
+        let _ = app.emit("ai-error", "Falta la API key de IA.".to_string());
+        return Ok(());
+    }
+    let base = if cfg.base_url.trim().is_empty() {
+        "https://integrate.api.nvidia.com/v1".to_string()
+    } else {
+        cfg.base_url.trim().trim_end_matches('/').to_string()
+    };
+    let model = if cfg.model.trim().is_empty() {
+        "qwen/qwen3-next-80b-a3b-instruct".to_string()
+    } else {
+        cfg.model.trim().to_string()
+    };
+    let body = serde_json::json!({
+        "model": model,
+        "messages": [
+            { "role": "system", "content": system },
+            { "role": "user", "content": prompt }
+        ],
+        "temperature": 0.6,
+        "max_tokens": 2048,
+        "stream": true
+    });
+
+    let client = reqwest::Client::new();
+    let resp = match client
+        .post(format!("{base}/chat/completions"))
+        .header("Authorization", format!("Bearer {api_key}"))
+        .header("Accept", "text/event-stream")
+        .json(&body)
+        .send()
+        .await
+    {
+        Ok(r) => r,
+        Err(e) => {
+            let _ = app.emit("ai-error", format!("Error de red: {e}"));
+            return Ok(());
+        }
+    };
+
+    if !resp.status().is_success() {
+        let status = resp.status();
+        let text = resp.text().await.unwrap_or_default();
+        let _ = app.emit("ai-error", format!("La IA respondió {status}: {text}"));
+        return Ok(());
+    }
+
+    // Procesa el flujo SSE: líneas "data: {json}" con delta.content.
+    let mut stream = resp.bytes_stream();
+    let mut buf = String::new();
+    while let Some(chunk) = stream.next().await {
+        let bytes = match chunk {
+            Ok(b) => b,
+            Err(e) => {
+                let _ = app.emit("ai-error", format!("Error de flujo: {e}"));
+                return Ok(());
+            }
+        };
+        buf.push_str(&String::from_utf8_lossy(&bytes));
+        while let Some(pos) = buf.find('\n') {
+            let line = buf[..pos].trim().to_string();
+            buf.drain(..=pos);
+            let Some(data) = line.strip_prefix("data:") else { continue };
+            let data = data.trim();
+            if data == "[DONE]" {
+                let _ = app.emit("ai-done", ());
+                return Ok(());
+            }
+            if let Ok(v) = serde_json::from_str::<serde_json::Value>(data) {
+                if let Some(delta) = v["choices"][0]["delta"]["content"].as_str() {
+                    if !delta.is_empty() {
+                        let _ = app.emit("ai-chunk", delta.to_string());
+                    }
+                }
+            }
+        }
+    }
+    let _ = app.emit("ai-done", ());
+    Ok(())
+}
+
 /// Guarda `content` en la ruta que el usuario elija en el diálogo nativo (para
 /// exportar HTML). Devuelve la ruta o `None` si cancela.
 #[tauri::command]
@@ -783,6 +872,7 @@ pub fn run() {
             read_ai_config,
             write_ai_config,
             ai_complete,
+            ai_stream,
             search_notebook,
             export_file
         ])

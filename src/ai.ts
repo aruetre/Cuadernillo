@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { icon } from "./icons";
 
 // Panel de IA: configuración (API key/modelo/endpoint, global de la app),
@@ -73,16 +74,25 @@ export function openAi(handlers: AiHandlers): void {
   function setError(msg: string): void { status.textContent = msg; status.dataset.state = "error"; }
   function clearStatus(): void { status.textContent = ""; status.dataset.state = ""; }
 
-  async function callAi(system: string, prompt: string): Promise<string | null> {
-    setBusy("Generando… (puede tardar unos segundos)");
-    try {
-      const out = await invoke<string>("ai_complete", { system, prompt });
-      clearStatus();
-      return out;
-    } catch (err) {
-      setError(String(err));
-      return null;
-    }
+  // Streaming: escucha ai-chunk/ai-done/ai-error, invoca ai_stream y va llamando
+  // a `onText` con el texto acumulado. Resuelve con el texto completo. Solo una
+  // operación a la vez (los eventos son globales).
+  let streaming = false;
+  function streamAi(system: string, prompt: string, onText: (full: string) => void): Promise<string> {
+    return new Promise<string>((resolve, reject) => {
+      if (streaming) { reject(new Error("Ya hay una operación de IA en curso.")); return; }
+      streaming = true;
+      let acc = "";
+      const uns: UnlistenFn[] = [];
+      const cleanup = () => { streaming = false; uns.forEach((u) => u()); uns.length = 0; };
+      Promise.all([
+        listen<string>("ai-chunk", (e) => { acc += e.payload; onText(acc); }),
+        listen("ai-done", () => { cleanup(); resolve(acc); }),
+        listen<string>("ai-error", (e) => { cleanup(); reject(new Error(String(e.payload))); }),
+      ])
+        .then((fns) => { uns.push(...fns); return invoke("ai_stream", { system, prompt }); })
+        .catch((e) => { cleanup(); reject(e as Error); });
+    });
   }
 
   // --- Configuración ---------------------------------------------------------
@@ -116,6 +126,21 @@ export function openAi(handlers: AiHandlers): void {
     } catch { /* ignora */ }
   });
 
+  // --- Salida compartida (se rellena en vivo con el streaming) ---------------
+  const result = document.createElement("textarea");
+  result.className = "settings-css ai-result";
+  result.readOnly = true;
+  result.placeholder = "La respuesta de la IA aparecerá aquí en vivo.";
+  const resultActions = document.createElement("div");
+  resultActions.className = "ai-result-actions";
+  const insertBtn = button("Insertar en el documento", "");
+  const newDocBtn = button("Crear como documento nuevo", "");
+  resultActions.append(insertBtn, newDocBtn);
+  const streamInto = (): ((full: string) => void) => {
+    result.value = "";
+    return (full) => { result.value = full; result.scrollTop = result.scrollHeight; };
+  };
+
   // --- Generar ---------------------------------------------------------------
   const genSection = section(body, "Generar documento");
   const genTitle = input("text", "Título del nuevo documento");
@@ -128,9 +153,17 @@ export function openAi(handlers: AiHandlers): void {
     if (!title) { setError("Escribe un título para el documento."); return; }
     if (!prompt) { setError("Escribe qué quieres generar."); return; }
     genBtn.disabled = true;
-    const out = await callAi(SYS_GEN, prompt);
-    genBtn.disabled = false;
-    if (out) { await handlers.onCreateDoc(title, out); closeAi(); }
+    setBusy("Generando…");
+    try {
+      const out = await streamAi(SYS_GEN, prompt, streamInto());
+      clearStatus();
+      await handlers.onCreateDoc(title, out);
+      closeAi();
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      genBtn.disabled = false;
+    }
   });
   genSection.appendChild(genBtn);
 
@@ -145,31 +178,31 @@ export function openAi(handlers: AiHandlers): void {
   }
   anaSection.appendChild(field("Tipo de análisis", anaSel));
   const anaBtn = button("Analizar documento", "primary");
-  const result = document.createElement("textarea");
-  result.className = "settings-css ai-result";
-  result.readOnly = true;
-  result.placeholder = "El resultado del análisis aparecerá aquí.";
-  const resultActions = document.createElement("div");
-  resultActions.className = "ai-result-actions";
-  const insertBtn = button("Insertar en el documento", "");
-  const newDocBtn = button("Crear como documento nuevo", "");
-  resultActions.append(insertBtn, newDocBtn);
-
   anaBtn.addEventListener("click", async () => {
     if (!handlers.hasPage()) { setError("Abre una página para analizarla."); return; }
     const md = handlers.getMarkdown();
     if (!md.trim()) { setError("El documento está vacío."); return; }
     const a = ANALYSES.find((x) => x.id === anaSel.value) ?? ANALYSES[0];
     anaBtn.disabled = true;
-    const out = await callAi(a.system, md);
-    anaBtn.disabled = false;
-    if (out) result.value = out;
+    setBusy("Analizando…");
+    try {
+      await streamAi(a.system, md, streamInto());
+      clearStatus();
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      anaBtn.disabled = false;
+    }
   });
+  anaSection.appendChild(anaBtn);
+
+  // --- Resultado (salida en streaming) ---------------------------------------
+  const outSection = section(body, "Resultado");
   insertBtn.addEventListener("click", () => { if (result.value.trim()) { handlers.onInsert(result.value); closeAi(); } });
   newDocBtn.addEventListener("click", async () => {
-    if (result.value.trim()) { await handlers.onCreateDoc("Análisis", result.value); closeAi(); }
+    if (result.value.trim()) { await handlers.onCreateDoc("Nota IA", result.value); closeAi(); }
   });
-  anaSection.append(anaBtn, result, resultActions);
+  outSection.append(result, resultActions);
 
   body.appendChild(status);
   overlay.appendChild(dialog);
