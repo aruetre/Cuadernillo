@@ -687,7 +687,7 @@ async fn ai_complete(app: AppHandle, system: String, prompt: String) -> Result<S
         cfg.base_url.trim().trim_end_matches('/').to_string()
     };
     let model = if cfg.model.trim().is_empty() {
-        "meta/llama-3.3-70b-instruct".to_string()
+        "qwen/qwen3-next-80b-a3b-instruct".to_string()
     } else {
         cfg.model.trim().to_string()
     };

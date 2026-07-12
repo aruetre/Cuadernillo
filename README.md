@@ -156,7 +156,7 @@ Abre el panel de IA con el botón de **chispas (✨)** de la cabecera → secci�
 **Configuración**:
 
 - **API key**: pega tu `nvapi-…`.
-- **Modelo**: por defecto `meta/llama-3.3-70b-instruct` (puedes poner cualquiera del catálogo).
+- **Modelo**: por defecto `qwen/qwen3-next-80b-a3b-instruct` (puedes poner cualquiera del catálogo).
 - **Endpoint**: `https://integrate.api.nvidia.com/v1` (déjalo salvo que uses otro proveedor).
 
 La configuración se guarda **en tu equipo** (carpeta de config de la app), no en

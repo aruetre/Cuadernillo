@@ -88,7 +88,7 @@ export function openAi(handlers: AiHandlers): void {
   // --- Configuración ---------------------------------------------------------
   const cfgSection = section(body, "Configuración");
   const apiKey = input("password", "Pega aquí tu API key (nvapi-…)");
-  const model = input("text", "meta/llama-3.3-70b-instruct");
+  const model = input("text", "qwen/qwen3-next-80b-a3b-instruct");
   const baseUrl = input("text", "https://integrate.api.nvidia.com/v1");
   cfgSection.append(
     field("API key", apiKey, "Consíguela gratis en build.nvidia.com. Se guarda solo en tu equipo."),
