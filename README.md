@@ -77,6 +77,16 @@ entorno (instala dependencias y **genera los iconos si faltan**) y arranca:
 .\run.ps1 release 0.2.0   # subir versión, tag y push (dispara el release en CI)
 ```
 
+**¿No quieres tocar la directiva de ejecución?** Usa el lanzador `run.bat`,
+que llama al script con `Bypass` solo para esa ejecución (nada permanente en
+Windows). Doble clic para arrancar en desarrollo, o desde la terminal:
+
+```bat
+run.bat            :: setup + arrancar en desarrollo
+run.bat build      :: compilar el .exe + .msi
+run.bat release 0.2.0
+```
+
 > **Si PowerShell bloquea el script** con *«no está firmado digitalmente»
 > (`UnauthorizedAccess`)*, es la directiva de ejecución de Windows, no un fallo
 > del script. Autoriza los scripts **solo en esa ventana** (no necesita admin y
