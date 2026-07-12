@@ -6,6 +6,16 @@ import { icon } from "./icons";
 interface Release { version: string; notes: string[]; }
 
 const CHANGELOG: Release[] = [
+  { version: "0.5.0", notes: [
+    "Layout de página por documento: A6–A3, Carta/Legal, orientación y márgenes.",
+    "Buscar y reemplazar dentro del documento (Ctrl+F).",
+    "Arrastrar y soltar imágenes al editor.",
+    "Papelera: eliminar es recuperable; retroenlaces entre notas.",
+    "Copia de seguridad del cuaderno a .zip.",
+    "Contador de palabras, corrector ortográfico, zoom (Ctrl +/−), deshacer/rehacer.",
+    "Recuerda la última página y el tamaño/posición de la ventana.",
+    "Enlaces externos abren el navegador; barra reorganizada; Acerca de / Novedades.",
+  ]},
   { version: "0.4.2", notes: [
     "Respuestas de IA en streaming (aparecen en vivo).",
     "Los enlaces externos abren el navegador del sistema.",
