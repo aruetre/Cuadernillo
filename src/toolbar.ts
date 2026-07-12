@@ -96,6 +96,10 @@ export function buildToolbar(container: HTMLElement, handlers: ToolbarHandlers =
 
   const groups: Btn[][] = [
     [
+      { id: "undo", icon: "undo", title: "Deshacer (Ctrl+Z)", action: () => format.undo() },
+      { id: "redo", icon: "redo", title: "Rehacer (Ctrl+Y)", action: () => format.redo() },
+    ],
+    [
       { id: "h1", icon: "h1", title: "Título 1", action: () => format.heading(1) },
       { id: "h2", icon: "h2", title: "Título 2", action: () => format.heading(2) },
       { id: "h3", icon: "h3", title: "Título 3", action: () => format.heading(3) },

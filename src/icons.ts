@@ -65,7 +65,7 @@ const LUCIDE: Record<string, string> = {
   "sidebar-right": "panel-right", minimize: "minus", maximize: "square",
   restore: "copy", sun: "sun", moon: "moon", ai: "sparkles",
   search: "search", palette: "command", export: "download",
-  layout: "ruler", info: "info",
+  layout: "ruler", info: "info", undo: "undo-2", redo: "redo-2",
 };
 
 function lucideSvg(name: string): string | null {

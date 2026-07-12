@@ -17,7 +17,7 @@ import {
   toggleStrikethroughCommand,
   insertTableCommand,
 } from "@milkdown/kit/preset/gfm";
-import { history } from "@milkdown/kit/plugin/history";
+import { history, undoCommand, redoCommand } from "@milkdown/kit/plugin/history";
 import { clipboard } from "@milkdown/kit/plugin/clipboard";
 import { indent } from "@milkdown/kit/plugin/indent";
 import { cursor } from "@milkdown/kit/plugin/cursor";
@@ -297,6 +297,9 @@ async function build(): Promise<void> {
     .use(blockCursor)
     .create();
 
+  // Corrector ortográfico del webview (subrayado + sugerencias con clic derecho).
+  document.querySelector<HTMLElement>(`${mountSel} .ProseMirror`)?.setAttribute("spellcheck", "true");
+
   // Observa cambios del DOM del editor para resolver imágenes recién pintadas.
   const target = document.querySelector(mountSel);
   if (target) {
@@ -462,6 +465,8 @@ function run(key: unknown, payload?: unknown): void {
 }
 
 export const format = {
+  undo: () => run(undoCommand.key),
+  redo: () => run(redoCommand.key),
   // Marcas: tras aplicarlas a una palabra, el cursor sale al final sin marca.
   bold: () => { run(toggleStrongCommand.key); collapseSelectionEnd(); },
   italic: () => { run(toggleEmphasisCommand.key); collapseSelectionEnd(); },

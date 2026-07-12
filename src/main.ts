@@ -34,6 +34,7 @@ const el = {
   toolbar: document.getElementById("toolbar") as HTMLElement,
   pagePath: document.getElementById("page-path") as HTMLElement,
   saveStatus: document.getElementById("save-status") as HTMLElement,
+  docStats: document.getElementById("doc-stats") as HTMLElement,
   btnOpen: document.getElementById("btn-open-notebook") as HTMLButtonElement,
   btnRecents: document.getElementById("btn-recents") as HTMLButtonElement,
   btnNew: document.getElementById("btn-new-page") as HTMLButtonElement,
@@ -70,6 +71,32 @@ let pages: { rel: string; name: string }[] = [];
 
 function setSaveState(state: SaveState): void {
   el.saveStatus.dataset.state = state;
+}
+
+function updateStats(md: string): void {
+  const text = md.trim();
+  const words = text ? text.split(/\s+/).length : 0;
+  el.docStats.textContent = `${words} palabra${words === 1 ? "" : "s"} · ${md.length} caracteres`;
+}
+
+// --- Zoom del texto (Ctrl +/−/0) ---------------------------------------------
+
+function applyZoom(factor: number): void {
+  const z = Math.min(2.5, Math.max(0.6, factor));
+  document.documentElement.style.setProperty("--doc-zoom", String(z));
+  localStorage.setItem("cuadernillo.zoom", String(z));
+}
+
+function currentZoom(): number {
+  return Number(localStorage.getItem("cuadernillo.zoom")) || 1;
+}
+
+// --- Recordar la última página abierta por cuaderno --------------------------
+
+function rememberPage(): void {
+  if (notebookRoot && currentPage) {
+    localStorage.setItem(`cuadernillo.lastPage:${notebookRoot}`, currentPage);
+  }
 }
 
 function pageTitle(): string {
@@ -112,6 +139,9 @@ async function activateNotebook(display: string): Promise<void> {
   await loadPageIcons();
   await loadLayouts();
   await refreshTree();
+  // Reabre la última página abierta de este cuaderno, si sigue existiendo.
+  const last = localStorage.getItem(`cuadernillo.lastPage:${display}`);
+  if (last && pages.some((p) => p.rel === last)) await openPage(last);
 }
 
 async function openNotebook(): Promise<void> {
@@ -188,6 +218,8 @@ async function openPage(relPath: string): Promise<void> {
   applyLayout(getLayout(relPath));
   setContent(content);
   renderOutline(el.outline, content, gotoHeading);
+  updateStats(content);
+  rememberPage();
   if (sourceMode) el.sourceView.value = content;
   setSaveState("idle");
   updatePageButtons();
@@ -201,6 +233,7 @@ function showWelcome(): void {
   setViewMode(false);
   clearOutline();
   applyLayout(DEFAULT_LAYOUT);
+  el.docStats.textContent = "";
 }
 
 function scheduleSave(markdown: string): void {
@@ -209,6 +242,7 @@ function scheduleSave(markdown: string): void {
   window.clearTimeout(saveTimer);
   saveTimer = window.setTimeout(() => void flushSave(), 800);
   scheduleOutline(markdown);
+  updateStats(markdown);
 }
 
 // --- Índice / navegación por títulos -----------------------------------------
@@ -698,6 +732,7 @@ async function init(): Promise<void> {
 
   applyTheme(localStorage.getItem("cuadernillo.theme") === "dark" ? "dark" : "light");
   applyRetroCursor(localStorage.getItem("cuadernillo.retroCursor") !== "0");
+  applyZoom(currentZoom());
   applyToolbarHidden(localStorage.getItem("cuadernillo.toolbarHidden") === "1");
   applySidebarCollapsed(localStorage.getItem("cuadernillo.sidebarCollapsed") === "1");
   applyOutlineCollapsed(localStorage.getItem("cuadernillo.outlineCollapsed") === "1");
@@ -722,6 +757,15 @@ async function init(): Promise<void> {
     } else if (mod && e.shiftKey && e.key.toLowerCase() === "f") {
       e.preventDefault();
       doSearch();
+    } else if (mod && (e.key === "+" || e.key === "=")) {
+      e.preventDefault();
+      applyZoom(currentZoom() + 0.1);
+    } else if (mod && e.key === "-") {
+      e.preventDefault();
+      applyZoom(currentZoom() - 0.1);
+    } else if (mod && e.key === "0") {
+      e.preventDefault();
+      applyZoom(1);
     }
   });
 
