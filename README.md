@@ -128,6 +128,47 @@ desde `app-icon.png` y crea un **Release en borrador** con todo adjunto. Revísa
 en la pestaña *Releases* y pulsa *Publish* cuando esté listo. También puedes
 lanzarlo a mano desde *Actions → Release → Run workflow*.
 
+## Actualizaciones automáticas
+
+Cuadernillo integra el **updater de Tauri**: cada instalación comprueba al
+arrancar si hay una versión nueva en los GitHub Releases y, si la hay, se ofrece
+a descargarla, instalarla y reiniciar. Las actualizaciones van **firmadas
+criptográficamente**, así que no se puede instalar un binario alterado.
+
+### Para el usuario
+
+- Al abrir la app, comprobación silenciosa a los pocos segundos; si hay versión
+  nueva, aparece un aviso para instalarla.
+- También a mano: paleta de comandos (`Ctrl+P`) → **«Buscar actualizaciones»**.
+- El auto-update empieza a funcionar **de la primera versión con updater en
+  adelante**: esa versión no se actualiza a sí misma, pero se ofrecerá a
+  actualizarse cuando publiques la siguiente.
+
+### Para el mantenedor (firma)
+
+El updater exige firmar los binarios. La clave se genera **una sola vez**:
+
+```bash
+npx tauri signer generate -w cuadernillo_updater.key
+```
+
+Esto crea la clave **privada** (`cuadernillo_updater.key`, ignorada por git —
+**guárdala a buen recaudo**) y la **pública**. La pública ya está en
+`tauri.conf.json` (`plugins.updater.pubkey`); la privada se guarda como **secreto
+del repositorio** en GitHub (*Settings → Secrets and variables → Actions*):
+
+- `TAURI_SIGNING_PRIVATE_KEY` = contenido de `cuadernillo_updater.key`.
+- `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` = la contraseña de la clave (si tiene; si
+  se generó sin contraseña, no hace falta).
+
+Con `bundle.createUpdaterArtifacts` activado, cada release del workflow firma los
+instaladores (genera los `.sig`) y publica el manifiesto `latest.json`, que es lo
+que consulta la app en
+`https://github.com/aruetre/Cuadernillo/releases/latest/download/latest.json`.
+
+> ⚠️ Si el secreto `TAURI_SIGNING_PRIVATE_KEY` no está configurado, el build de
+> release **falla** (la firma es obligatoria al tener el updater activo).
+
 ## Funcionalidad actual
 
 - Abrir cualquier carpeta como cuaderno (diálogo nativo).
