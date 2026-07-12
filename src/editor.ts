@@ -92,9 +92,16 @@ const enhancePlugin = $prose(
               const adm = ADM_RE.exec(text.trim());
               if (adm) {
                 const start = pos + text.indexOf(adm[0]);
+                const end = start + adm[0].length;
+                // Oculta el marcador [!TIPO] salvo cuando el cursor está en su
+                // línea (para poder editarlo), como en GitHub/Obsidian. La
+                // cabecera con icono+título la pinta el CSS (::before). No se
+                // toca el documento: el markdown sigue teniendo el marcador.
+                const $p = state.doc.resolve(start);
+                const editing = state.selection.from >= $p.start() && state.selection.from <= $p.end();
                 decos.push(
-                  Decoration.inline(start, start + adm[0].length, {
-                    class: `adm-tag adm-tag-${adm[1].toLowerCase()}`,
+                  Decoration.inline(start, end, {
+                    class: editing ? `adm-tag adm-tag-${adm[1].toLowerCase()}` : "adm-tag-hidden",
                   })
                 );
               }
