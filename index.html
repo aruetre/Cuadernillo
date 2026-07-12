@@ -35,28 +35,28 @@
         <span id="save-status" data-state="idle"></span>
         <span id="doc-stats"></span>
         <span class="spacer"></span>
-        <!-- Vista y navegación -->
+        <!-- Buscar y vista -->
         <button id="btn-search" class="icon-btn" title="Buscar en el cuaderno (Ctrl+Mayús+F)" aria-label="Buscar en el cuaderno"></button>
         <button id="btn-toggle-outline" class="icon-btn" title="Mostrar/ocultar índice" aria-label="Mostrar u ocultar el índice"></button>
         <button id="btn-toggle-toolbar" class="icon-btn" title="Ocultar/mostrar barra de herramientas" aria-label="Ocultar o mostrar la barra de herramientas"></button>
         <button id="btn-view" class="icon-btn" title="Ver código markdown" aria-label="Alternar vista de código y formato" disabled></button>
+        <button id="btn-theme" class="icon-btn" title="Cambiar tema claro/oscuro" aria-label="Cambiar tema claro u oscuro"></button>
         <span class="header-sep"></span>
-        <!-- Documento -->
+        <!-- Documento (página actual) -->
         <button id="btn-layout" class="icon-btn" title="Layout de la página (tamaño, orientación, márgenes)" aria-label="Layout de la página" disabled></button>
         <button id="btn-templates" class="icon-btn" title="Plantillas" aria-label="Insertar plantilla" disabled></button>
         <button id="btn-ai" class="icon-btn" title="Asistente de IA" aria-label="Asistente de IA"></button>
         <button id="btn-copy-doc" class="icon-btn" title="Copiar todo el documento" aria-label="Copiar documento" disabled></button>
         <button id="btn-export" class="icon-btn" title="Exportar (HTML / PDF)" aria-label="Exportar documento" disabled></button>
         <span class="header-sep"></span>
-        <!-- Aplicación -->
-        <button id="btn-settings" class="icon-btn" title="Ajustes del cuaderno" aria-label="Ajustes del cuaderno" disabled></button>
-        <button id="btn-theme" class="icon-btn" title="Cambiar tema claro/oscuro" aria-label="Cambiar tema claro u oscuro"></button>
-        <button id="btn-help" class="icon-btn" title="Ayuda de markdown" aria-label="Ayuda de markdown"></button>
-        <button id="btn-about" class="icon-btn" title="Acerca de / Novedades" aria-label="Acerca de y novedades"></button>
-        <span class="header-sep"></span>
         <!-- Acciones de página -->
         <button id="btn-rename" class="icon-btn" title="Renombrar página" aria-label="Renombrar página" disabled></button>
         <button id="btn-delete" class="icon-btn danger" title="Eliminar página" aria-label="Eliminar página" disabled></button>
+        <span class="header-sep"></span>
+        <!-- Aplicación -->
+        <button id="btn-settings" class="icon-btn" title="Ajustes del cuaderno" aria-label="Ajustes del cuaderno" disabled></button>
+        <button id="btn-help" class="icon-btn" title="Ayuda de markdown" aria-label="Ayuda de markdown"></button>
+        <button id="btn-about" class="icon-btn" title="Acerca de / Novedades" aria-label="Acerca de y novedades"></button>
       </header>
       <div id="toolbar" role="toolbar" aria-label="Herramientas de formato"></div>
       <div id="editor-wrap">
@@ -68,6 +68,24 @@
           <p>Abre un cuaderno para empezar. Cada página es un fichero .md; cada subcarpeta, una rama del árbol.</p>
         </div>
       </div>
+      <section id="chat-dock" class="collapsed" aria-label="Chat con IA">
+        <div id="chat-bar" class="chat-bar">
+          <button id="chat-toggle" type="button" class="chat-toggle" aria-expanded="false" title="Abrir/cerrar chat con IA">
+            <span id="chat-toggle-icon" class="chat-toggle-icon"></span>
+            <span class="chat-toggle-label">Chat IA</span>
+          </button>
+          <button id="chat-clear" type="button" class="chat-clear" title="Vaciar conversación" aria-label="Vaciar conversación"></button>
+        </div>
+        <div id="chat-panel">
+          <div id="chat-messages" role="log" aria-live="polite">
+            <p class="chat-empty">Escribe abajo para empezar a chatear con la IA.</p>
+          </div>
+          <form id="chat-form">
+            <textarea id="chat-input" rows="1" placeholder="Pregunta lo que quieras… (Enter para enviar, Mayús+Enter para salto de línea)" aria-label="Mensaje para la IA"></textarea>
+            <button id="chat-send" type="submit" class="chat-send" title="Enviar (Enter)" aria-label="Enviar mensaje"></button>
+          </form>
+        </div>
+      </section>
     </main>
     <aside id="outline-panel">
       <div id="outline-panel-header">

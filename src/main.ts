@@ -11,6 +11,7 @@ import { openTemplates } from "./templates";
 import { openSettings, loadSettings, resetSettings } from "./settings";
 import { openNotePicker } from "./picker";
 import { openAi } from "./ai";
+import { setupChat, openChat } from "./chat";
 import { openSearch } from "./search";
 import { openFind } from "./find";
 import { openPalette, type PaletteCommand } from "./palette";
@@ -527,6 +528,33 @@ function openAiPanel(): void {
   });
 }
 
+// Devuelve los títulos de todas las páginas del cuaderno (árbol aplanado),
+// para dar contexto al chat sobre qué notas existen.
+async function allPageTitles(): Promise<string[]> {
+  const out: string[] = [];
+  const walk = (nodes: PageNode[]): void => {
+    for (const n of nodes) {
+      if (!n.is_dir) out.push(n.name.replace(/\.md$/i, ""));
+      if (n.children?.length) walk(n.children);
+    }
+  };
+  try { walk(await invoke<PageNode[]>("list_pages")); } catch { /* sin cuaderno */ }
+  return out;
+}
+
+function setupChatPanel(): void {
+  setupChat({
+    hasNotebook: () => notebookRoot !== null,
+    hasPage: () => currentPage !== null,
+    currentTitle: () => pageTitle(),
+    getMarkdown: () => getContent(),
+    listPageTitles: allPageTitles,
+    createPage: aiCreateDoc,
+    insert: (md) => insertMarkdown(md, true),
+    replace: (md) => { setContent(md); scheduleSave(md); },
+  });
+}
+
 // --- Búsqueda y paleta de comandos -------------------------------------------
 
 function doSearch(): void {
@@ -543,6 +571,7 @@ function doPalette(): void {
     { label: "Cambiar de cuaderno (recientes)", run: () => void openRecentsMenu() },
     { label: "Ajustes del cuaderno", run: () => openSettings() },
     { label: "Asistente de IA", run: openAiPanel },
+    { label: "Chat con IA", run: () => openChat() },
     { label: "Plantillas", run: () => openTemplates(pageTitle()) },
     { label: "Insertar imagen", run: () => void insertImage() },
     { label: "Copiar documento", run: () => openCopyMenu() },
@@ -790,6 +819,7 @@ async function init(): Promise<void> {
     insertDate,
     insertTime,
   });
+  setupChatPanel();
 
   el.btnOpen.addEventListener("click", () => void openNotebook());
   el.btnRecents.addEventListener("click", () => void openRecentsMenu());
