@@ -12,10 +12,13 @@ export interface ChatHandlers {
   hasPage: () => boolean;
   currentTitle: () => string;
   getMarkdown: () => string;
+  getSelection: () => string;
   listPageTitles: () => Promise<string[]>;
   createPage: (title: string, markdown: string) => Promise<void>;
   insert: (markdown: string) => void;
   replace: (markdown: string) => void;
+  replaceSelection: (markdown: string) => void;
+  renamePage: (newName: string) => Promise<void>;
 }
 
 interface Turn { role: "user" | "assistant"; content: string; }
@@ -32,7 +35,9 @@ const SYSTEM_BASE =
   "Herramientas disponibles:\n" +
   '- {"tool":"crear_pagina","titulo":"…","markdown":"…"} → crea una página nueva con ese contenido y la abre.\n' +
   '- {"tool":"insertar","markdown":"…"} → inserta ese Markdown en la posición del cursor de la página actual.\n' +
-  '- {"tool":"reemplazar","markdown":"…"} → reemplaza TODO el contenido de la página actual.\n\n' +
+  '- {"tool":"reemplazar","markdown":"…"} → reemplaza TODO el contenido de la página actual.\n' +
+  '- {"tool":"reemplazar_seleccion","markdown":"…"} → reemplaza SOLO el texto seleccionado (útil para reescribir/corregir un fragmento). Solo si hay selección.\n' +
+  '- {"tool":"renombrar_pagina","titulo":"NuevoNombre"} → renombra la página actual.\n\n' +
   "Reglas: usa el bloque SOLO cuando el usuario quiera modificar el cuaderno; si solo pregunta o " +
   "charla, responde con texto sin bloque. Nunca inventes más de una acción por respuesta. El Markdown " +
   "va en una sola línea JSON: usa \\n para los saltos de línea.";
@@ -49,6 +54,29 @@ let handlers: ChatHandlers;
 const history: Turn[] = [];
 let busy = false;
 
+const STORE_KEY = "cuadernillo.chatHistory";
+
+function saveHistory(): void {
+  try { localStorage.setItem(STORE_KEY, JSON.stringify(history.slice(-40))); } catch { /* cuota */ }
+}
+function loadHistory(): void {
+  try {
+    const arr = JSON.parse(localStorage.getItem(STORE_KEY) || "[]");
+    if (!Array.isArray(arr)) return;
+    for (const t of arr)
+      if (t && (t.role === "user" || t.role === "assistant") && typeof t.content === "string")
+        history.push(t);
+  } catch { /* corrupto: se ignora */ }
+}
+function renderHistory(): void {
+  if (!els || !history.length) return;
+  els.messages.querySelector(".chat-empty")?.remove();
+  for (const t of history) {
+    if (t.role === "assistant" && /^\(acción ejecutada:/.test(t.content)) continue;
+    addBubble(t.role, t.content);
+  }
+}
+
 export function setupChat(h: ChatHandlers): void {
   handlers = h;
   const $ = (id: string) => document.getElementById(id);
@@ -63,6 +91,10 @@ export function setupChat(h: ChatHandlers): void {
     send: $("chat-send") as HTMLButtonElement,
   };
   els.send.innerHTML = icon("chevron-up");
+
+  // Conversación recordada de sesiones anteriores.
+  loadHistory();
+  renderHistory();
 
   // Estado colapsado recordado.
   const collapsed = localStorage.getItem("cuadernillo.chatCollapsed") !== "0";
@@ -117,6 +149,7 @@ function autoGrow(): void {
 function clearChat(): void {
   if (!els) return;
   history.length = 0;
+  localStorage.removeItem(STORE_KEY);
   els.messages.innerHTML = '<p class="chat-empty">Escribe abajo para empezar a chatear con la IA.</p>';
 }
 
@@ -162,6 +195,7 @@ async function send(): Promise<void> {
   } finally {
     busy = false;
     els.send.disabled = false;
+    saveHistory();
     scrollDown();
   }
 }
@@ -192,6 +226,17 @@ async function runAction(full: string, bubble: HTMLElement): Promise<void> {
       if (!handlers.hasPage()) throw new Error("Abre una página primero.");
       handlers.replace(md);
       chip(bubble, "✓ Página reemplazada");
+    } else if (act.tool === "reemplazar_seleccion") {
+      if (!handlers.hasPage()) throw new Error("Abre una página primero.");
+      if (!handlers.getSelection().trim()) throw new Error("No hay texto seleccionado.");
+      handlers.replaceSelection(md);
+      chip(bubble, "✓ Selección reescrita");
+    } else if (act.tool === "renombrar_pagina") {
+      if (!handlers.hasPage()) throw new Error("Abre una página primero.");
+      const name = (act.titulo || "").trim();
+      if (!name) throw new Error("Falta el nuevo nombre.");
+      await handlers.renamePage(name);
+      chip(bubble, "✓ Página renombrada: " + name);
     } else {
       return;
     }
@@ -222,6 +267,8 @@ async function buildSystem(): Promise<string> {
     } else {
       ctx += "La página actual está vacía.\n";
     }
+    const sel = handlers.getSelection().trim();
+    if (sel) ctx += `\nTexto SELECCIONADO ahora mismo (puedes reescribirlo con reemplazar_seleccion):\n"""${sel.slice(0, 2000)}"""\n`;
   } else {
     ctx += "No hay ninguna página abierta.\n";
   }

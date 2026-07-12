@@ -507,6 +507,27 @@ export function insertMarkdown(md: string, block = false): void {
   focusEditor();
 }
 
+/** Texto plano de la selección actual del editor (vacío si no hay selección). */
+export function getSelectionText(): string {
+  if (!editor) return "";
+  return editor.action((ctx) => {
+    const { state } = ctx.get(editorViewCtx);
+    const { from, to } = state.selection;
+    return state.doc.textBetween(from, to, "\n\n", "\n");
+  });
+}
+
+/** Reemplaza la selección actual por el markdown dado (si no hay selección,
+ *  inserta en el cursor). Lo usa el chat para reescribir el texto marcado. */
+export function replaceSelection(md: string): void {
+  if (!editor) return;
+  editor.action((ctx) => {
+    const view = ctx.get(editorViewCtx);
+    if (!view.state.selection.empty) view.dispatch(view.state.tr.deleteSelection());
+  });
+  insertMarkdown(md);
+}
+
 // Crea un párrafo vacío tras el bloque superior actual y coloca ahí el cursor
 // (equivale a "Enter" al terminar de insertar un elemento).
 function moveToNewLineAfter(): void {

@@ -2,7 +2,7 @@ import "./fonts";
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { listen } from "@tauri-apps/api/event";
-import { createEditor, setContent, getContent, focusEditor, insertMarkdown, setImageAlign, type NavLink } from "./editor";
+import { createEditor, setContent, getContent, focusEditor, insertMarkdown, setImageAlign, getSelectionText, replaceSelection, type NavLink } from "./editor";
 import { renderTree, expandPathTo, type PageNode } from "./tree";
 import { buildToolbar } from "./toolbar";
 import { icon } from "./icons";
@@ -542,16 +542,31 @@ async function allPageTitles(): Promise<string[]> {
   return out;
 }
 
+// Renombra la página actual sin diálogo (para las acciones del chat). Lanza
+// error si falla, que el chat muestra como chip.
+async function chatRenamePage(newName: string): Promise<void> {
+  if (!notebookRoot || !currentPage) throw new Error("No hay página abierta.");
+  await flushSave();
+  const relPath = await invoke<string>("rename_page", { relPath: currentPage, newName });
+  currentPage = relPath;
+  expandPathTo(relPath);
+  await refreshTree();
+  el.pagePath.textContent = relPath;
+}
+
 function setupChatPanel(): void {
   setupChat({
     hasNotebook: () => notebookRoot !== null,
     hasPage: () => currentPage !== null,
     currentTitle: () => pageTitle(),
     getMarkdown: () => getContent(),
+    getSelection: () => getSelectionText(),
     listPageTitles: allPageTitles,
     createPage: aiCreateDoc,
     insert: (md) => insertMarkdown(md, true),
     replace: (md) => { setContent(md); scheduleSave(md); },
+    replaceSelection: (md) => { replaceSelection(md); scheduleSave(getContent()); },
+    renamePage: chatRenamePage,
   });
 }
 
