@@ -1,6 +1,7 @@
 use futures_util::StreamExt;
 use notify::{RecommendedWatcher, RecursiveMode, Watcher};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
+use std::time::{SystemTime, UNIX_EPOCH};
 use std::fs;
 use std::path::{Component, Path, PathBuf};
 use std::sync::Mutex;
@@ -434,12 +435,168 @@ fn rename_page(
     Ok(new_rel.to_string_lossy().replace('\\', "/"))
 }
 
+// --- Papelera: eliminar mueve a .cuadernillo/trash/ (recuperable) ------------
+
+#[derive(Serialize, Deserialize, Clone)]
+struct TrashItem {
+    id: String,
+    original: String,
+    name: String,
+    deleted_at: u128,
+}
+
+fn trash_dir(root: &Path) -> PathBuf {
+    dot_dir(root).join("trash")
+}
+fn read_trash_index(root: &Path) -> Vec<TrashItem> {
+    fs::read_to_string(trash_dir(root).join("index.json"))
+        .ok()
+        .and_then(|s| serde_json::from_str(&s).ok())
+        .unwrap_or_default()
+}
+fn write_trash_index(root: &Path, items: &[TrashItem]) -> Result<(), String> {
+    let dir = trash_dir(root);
+    fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    let s = serde_json::to_string_pretty(items).map_err(|e| e.to_string())?;
+    fs::write(dir.join("index.json"), s).map_err(|e| e.to_string())
+}
+
 #[tauri::command]
 fn delete_page(state: State<'_, NotebookState>, rel_path: String) -> Result<(), String> {
     let root = state.root()?;
     let path = safe_join(&root, &rel_path)?;
-    fs::remove_file(&path).map_err(|e| format!("No se pudo eliminar: {e}"))
+    if !path.exists() {
+        return Err("La página no existe".into());
+    }
+    let dir = trash_dir(&root);
+    fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    let now = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_millis())
+        .unwrap_or(0);
+    let id = format!("{now}");
+    fs::rename(&path, dir.join(format!("{id}.md")))
+        .map_err(|e| format!("No se pudo mover a la papelera: {e}"))?;
+    let name = Path::new(&rel_path)
+        .file_stem()
+        .map(|s| s.to_string_lossy().to_string())
+        .unwrap_or_default();
+    let mut items = read_trash_index(&root);
+    items.push(TrashItem { id, original: rel_path, name, deleted_at: now });
+    write_trash_index(&root, &items)?;
+    Ok(())
     // Las subpáginas (carpeta homónima) se conservan a propósito.
+}
+
+#[tauri::command]
+fn list_trash(state: State<'_, NotebookState>) -> Result<Vec<TrashItem>, String> {
+    let root = state.root()?;
+    let dir = trash_dir(&root);
+    Ok(read_trash_index(&root)
+        .into_iter()
+        .filter(|it| dir.join(format!("{}.md", it.id)).is_file())
+        .collect())
+}
+
+#[tauri::command]
+fn restore_trash(state: State<'_, NotebookState>, id: String) -> Result<String, String> {
+    let root = state.root()?;
+    let mut items = read_trash_index(&root);
+    let pos = items
+        .iter()
+        .position(|it| it.id == id)
+        .ok_or_else(|| "Elemento no encontrado".to_string())?;
+    let item = items[pos].clone();
+    let src = trash_dir(&root).join(format!("{}.md", id));
+    let mut dest_rel = item.original.clone();
+    let mut dest = safe_join(&root, &dest_rel)?;
+    if dest.exists() {
+        dest_rel = format!("{}-restaurado.md", dest_rel.trim_end_matches(".md"));
+        dest = safe_join(&root, &dest_rel)?;
+    }
+    if let Some(parent) = dest.parent() {
+        fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+    fs::rename(&src, &dest).map_err(|e| format!("No se pudo restaurar: {e}"))?;
+    items.remove(pos);
+    write_trash_index(&root, &items)?;
+    Ok(dest_rel)
+}
+
+// --- Retroenlaces: qué páginas enlazan a una nota con [[...]] ----------------
+
+fn backlink_dir(dir: &Path, root: &Path, target: &str, hits: &mut Vec<SearchHit>, limit: usize) {
+    if hits.len() >= limit {
+        return;
+    }
+    let entries = match fs::read_dir(dir) {
+        Ok(e) => e,
+        Err(_) => return,
+    };
+    for entry in entries.filter_map(|e| e.ok()) {
+        if hits.len() >= limit {
+            return;
+        }
+        let path = entry.path();
+        let fname = entry.file_name().to_string_lossy().to_string();
+        if fname.starts_with('.') {
+            continue;
+        }
+        if path.is_dir() {
+            backlink_dir(&path, root, target, hits, limit);
+        } else if path.extension().and_then(|e| e.to_str()) == Some("md") {
+            let Ok(content) = fs::read_to_string(&path) else { continue };
+            let rel = path.strip_prefix(root).unwrap_or(&path).to_string_lossy().replace('\\', "/");
+            let stem = path.file_stem().map(|s| s.to_string_lossy().to_string()).unwrap_or_default();
+            for (i, line) in content.lines().enumerate() {
+                if wiki_links_match(line, target) {
+                    hits.push(SearchHit {
+                        rel_path: rel.clone(),
+                        name: stem.clone(),
+                        line: i + 1,
+                        snippet: line.trim().chars().take(160).collect(),
+                    });
+                    break; // una vez por fichero basta
+                }
+            }
+        }
+    }
+}
+
+/// ¿Alguna cita [[...]] de la línea apunta a `target` (nombre en minúsculas)?
+fn wiki_links_match(line: &str, target: &str) -> bool {
+    let mut rest = line;
+    while let Some(open) = rest.find("[[") {
+        let after = &rest[open + 2..];
+        let Some(close) = after.find("]]") else { break };
+        let inner = &after[..close];
+        let name = inner
+            .split('|')
+            .next()
+            .unwrap_or("")
+            .rsplit('/')
+            .next()
+            .unwrap_or("")
+            .trim()
+            .to_lowercase();
+        if name == target {
+            return true;
+        }
+        rest = &after[close + 2..];
+    }
+    false
+}
+
+#[tauri::command]
+fn find_backlinks(state: State<'_, NotebookState>, name: String) -> Result<Vec<SearchHit>, String> {
+    let root = state.root()?;
+    let target = name.trim().to_lowercase();
+    if target.is_empty() {
+        return Ok(vec![]);
+    }
+    let mut hits = Vec::new();
+    backlink_dir(&root, &root, &target, &mut hits, 300);
+    Ok(hits)
 }
 
 // --- Ajustes por cuaderno (.cuadernillo/) ------------------------------------
@@ -927,7 +1084,10 @@ pub fn run() {
             ai_complete,
             ai_stream,
             search_notebook,
-            export_file
+            export_file,
+            list_trash,
+            restore_trash,
+            find_backlinks
         ])
         .run(tauri::generate_context!())
         .expect("error al arrancar Cuadernillo");

@@ -548,8 +548,88 @@ function doPalette(): void {
     { label: "Ayuda de markdown", run: () => openHelp() },
     { label: "Renombrar página", run: () => void renamePage() },
     { label: "Eliminar página", run: () => void deletePage() },
+    { label: "Retroenlaces (qué notas enlazan aquí)", run: () => void openBacklinks() },
+    { label: "Papelera (restaurar página eliminada)", run: () => void openTrash() },
   ];
   openPalette(pages, commands, (rel) => void openPage(rel));
+}
+
+// --- Papelera y retroenlaces -------------------------------------------------
+
+function escapeHtml(s: string): string {
+  return s.replace(/[&<>"']/g, (c) =>
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c] as string));
+}
+
+function showList(title: string, items: { primary: string; secondary: string; action: () => void }[], emptyMsg: string): void {
+  const overlay = document.createElement("div");
+  overlay.className = "modal-overlay picker-overlay";
+  const close = () => {
+    overlay.classList.remove("visible");
+    document.removeEventListener("keydown", onKey, true);
+    setTimeout(() => overlay.remove(), 180);
+  };
+  const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") { e.preventDefault(); close(); } };
+  overlay.addEventListener("click", (e) => { if (e.target === overlay) close(); });
+
+  const box = document.createElement("div");
+  box.className = "picker";
+  const head = document.createElement("div");
+  head.className = "picker-search";
+  head.innerHTML = `<span class="list-picker-title">${escapeHtml(title)}</span>`;
+  const list = document.createElement("div");
+  list.className = "picker-list";
+  if (items.length === 0) {
+    const e = document.createElement("div");
+    e.className = "picker-empty";
+    e.textContent = emptyMsg;
+    list.appendChild(e);
+  } else {
+    for (const it of items) {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "picker-item";
+      b.innerHTML =
+        `<span class="picker-primary">${escapeHtml(it.primary)}</span>` +
+        `<span class="picker-secondary">${escapeHtml(it.secondary)}</span>`;
+      b.addEventListener("click", () => { close(); it.action(); });
+      list.appendChild(b);
+    }
+  }
+  box.append(head, list);
+  overlay.appendChild(box);
+  document.body.appendChild(overlay);
+  requestAnimationFrame(() => overlay.classList.add("visible"));
+  document.addEventListener("keydown", onKey, true);
+}
+
+async function openTrash(): Promise<void> {
+  if (!notebookRoot) { window.alert("Abre un cuaderno."); return; }
+  let items: { id: string; name: string }[] = [];
+  try { items = await invoke("list_trash"); } catch { /* vacío */ }
+  showList("Papelera — elige para restaurar", items.map((it) => ({
+    primary: it.name || "(sin nombre)",
+    secondary: "eliminada — clic para restaurar",
+    action: async () => {
+      try {
+        const rel = await invoke<string>("restore_trash", { id: it.id });
+        await refreshTree();
+        await openPage(rel);
+      } catch (e) { window.alert(String(e)); }
+    },
+  })), "La papelera está vacía.");
+}
+
+async function openBacklinks(): Promise<void> {
+  if (!currentPage) { window.alert("Abre una página."); return; }
+  const name = pageTitle();
+  let hits: { rel_path: string; name: string; snippet: string }[] = [];
+  try { hits = await invoke("find_backlinks", { name }); } catch { /* vacío */ }
+  showList(`Retroenlaces a «${name}»`, hits.map((h) => ({
+    primary: h.name,
+    secondary: h.snippet,
+    action: () => void openPage(h.rel_path),
+  })), "Ninguna nota enlaza a esta página con [[…]].");
 }
 
 // --- Gestión de páginas ------------------------------------------------------
@@ -591,7 +671,7 @@ async function renamePage(): Promise<void> {
 
 async function deletePage(): Promise<void> {
   if (!notebookRoot || !currentPage) return;
-  const ok = window.confirm(`¿Eliminar la página "${currentPage}"? Esta acción no se puede deshacer.`);
+  const ok = window.confirm(`¿Eliminar la página "${currentPage}"? Se moverá a la papelera (podrás restaurarla desde Ctrl+P → Papelera).`);
   if (!ok) return;
   try {
     await invoke("delete_page", { relPath: currentPage });
