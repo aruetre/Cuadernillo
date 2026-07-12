@@ -69,3 +69,18 @@ jobs:
           releaseBody: 'Descarga el binario de tu sistema. Instrucciones en el README.'
           releaseDraft: true
           prerelease: false
+
+  # Cuando ambos binarios (Windows y Linux) se han subido al Release, lo publica.
+  # Es necesario para la actualización automática: GitHub solo apunta
+  # /releases/latest/ (donde el updater busca latest.json) a releases PUBLICADOS,
+  # no a borradores. Un job separado evita publicar con un latest.json a medias.
+  publish:
+    needs: build
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    steps:
+      - name: Publicar el Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release edit "${{ github.ref_name }}" --repo "${{ github.repository }}" --draft=false
