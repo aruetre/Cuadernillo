@@ -47,6 +47,7 @@ export type OnNavigate = (link: NavLink) => void;
 
 let editor: Editor | null = null;
 let suppress = false;
+let setToken = 0;
 let navigateCb: OnNavigate = () => {};
 
 const ADM_RE = /^\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]/i;
@@ -328,8 +329,21 @@ export function findClear(): void {
 // --- Resolución de imágenes: src relativo → data-URL (solo en el DOM) ---------
 // El modelo de ProseMirror conserva la ruta relativa (para el markdown); aquí
 // solo cambiamos el src del <img> mostrado, sin afectar a lo que se guarda.
+// Caché de imágenes resueltas (ruta relativa → data-URL). Limitada para no
+// crecer sin fin al navegar por notas con muchas imágenes grandes (D3).
 const imgCache = new Map<string, string>();
 const imgFailed = new Set<string>();
+const IMG_CACHE_MAX = 60;
+
+function cacheImage(raw: string, url: string): void {
+  imgCache.delete(raw); // reinsertar al final (orden de uso reciente)
+  imgCache.set(raw, url);
+  while (imgCache.size > IMG_CACHE_MAX) {
+    const oldest = imgCache.keys().next().value;
+    if (oldest === undefined) break;
+    imgCache.delete(oldest);
+  }
+}
 
 function resolveImages(): void {
   const imgs = document.querySelectorAll<HTMLImageElement>("#editor img");
@@ -354,7 +368,7 @@ function resolveImages(): void {
     try { rel = decodeURIComponent(raw); } catch { /* ruta ya literal */ }
     invoke<string>("read_attachment", { rel })
       .then((url) => {
-        imgCache.set(raw, url);
+        cacheImage(raw, url);
         img.src = url;
       })
       .catch((e) => {
@@ -460,11 +474,13 @@ export async function setCodeTheme(theme: CodeTheme): Promise<void> {
 
 export function setContent(markdown: string): void {
   if (!editor) return;
+  // Token para que, al cambiar de página muy rápido, un temporizador viejo no
+  // libere `suppress` mientras un setContent posterior aún se asienta (D9).
+  const token = ++setToken;
   suppress = true;
   editor.action(replaceAll(markdown, true));
   scheduleResolveImages();
-  // El listener se dispara de forma asíncrona; liberamos en el siguiente tick largo.
-  setTimeout(() => { suppress = false; }, 50);
+  setTimeout(() => { if (token === setToken) suppress = false; }, 50);
 }
 
 /** Devuelve el markdown actual del documento (para la vista de código crudo). */
